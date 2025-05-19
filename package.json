@@ -1,0 +1,11 @@
+{
+  "name": "ospg2-cli",
+  "version": "1.0.0",
+  "description": "cli tool to scan repos for contract drift",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
