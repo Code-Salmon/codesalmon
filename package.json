@@ -4,7 +4,7 @@
   "description": "cli tool to scan repos for contract drift",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "salmon": "bin/index.js"
+    "salmon": "bin2/index.js"
   },
   "type": "module",
   "author": "",
@@ -14,6 +14,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@types/node": "^22.15.20",
     "@types/yargs": "^17.0.33",
     "ts-morph": "^26.0.0"
   }
