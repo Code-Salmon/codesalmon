@@ -2,15 +2,19 @@
   "name": "ospg2-cli",
   "version": "1.0.0",
   "description": "cli tool to scan repos for contract drift",
+  "bin": {
+    "ospg2-cli": "./index.ts"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "salmon": "bin2/index.js"
+    "salmon": "npx bin2/index.ts"
   },
   "type": "module",
   "author": "",
   "license": "ISC",
   "dependencies": {
     "chalk": "^5.4.1",
+    "tsup": "^8.5.0",
     "yargs": "^17.7.2"
   },
   "devDependencies": {

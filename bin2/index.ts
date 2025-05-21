@@ -7,7 +7,7 @@ const path = yargs(process.argv.slice(2)).parse();
 
 const project = fs.existsSync("tsconfig.json") //if tsconfig.json exists, scan files from this source
   ? new Project({ tsConfigFilePath: `${path}/tsconfig.json` })
-  : new Project();
+  : new Project(); 
 
 if (!fs.existsSync("tsconfig.json")) {
   project.addSourceFilesAtPaths("src/**/*.ts"); //backup pattern to scan files if no tsconfig.json file found in user's code
