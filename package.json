@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "description": "cli tool to scan repos for contract drift",
   "bin": {
-    "ospg2-cli": "./index.ts"
+    "ospg2-cli": "./dist/index.js"
   },
   "scripts": {
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "salmon": "npx bin2/index.ts"
+    "salmon": "node ./dist/index.js"
   },
-  "type": "module",
+  "type": "commonjs",
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -18,8 +19,10 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@types/node": "^22.15.20",
+    "@types/node": "^22.15.21",
     "@types/yargs": "^17.0.33",
-    "ts-morph": "^26.0.0"
-  },
+    "ts-morph": "^26.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
 }

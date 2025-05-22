@@ -2,20 +2,27 @@
 import yargs from 'yargs';
 import { Project, ScriptTarget, SyntaxKind } from "ts-morph";
 import * as fs from 'fs';
-import { compareAPIs } from './compareAPIs.js';
+import path from 'path';
 
-const path = yargs(process.argv.slice(2)).parse();
+const cliArgs = yargs(process.argv.slice(2)).parse();
+
+const tsConfigPath = path.resolve(__dirname, '../tsconfig.json');
+console.log(tsConfigPath);
 
 const project = fs.existsSync("tsconfig.json") //if tsconfig.json exists, scan files from this source
-  ? new Project({ tsConfigFilePath: `${path}/tsconfig.json` })
+  ? new Project({ tsConfigFilePath: tsConfigPath })
   : new Project(); 
 
-if (!fs.existsSync("tsconfig.json")) {
-  project.addSourceFilesAtPaths("src/**/*.ts"); //backup pattern to scan files if no tsconfig.json file found in user's code
-}
+console.log("Checking tsconfig.json existence...");
+console.log("fs.existsSync('tsconfig.json'):", fs.existsSync('./tsconfig.json'));
+
+// if (!fs.existsSync("tsconfig.json")) {
+//   project.addSourceFilesAtPaths("src/**/*.ts"); //!backup pattern to scan files if no tsconfig.json file found in user's code
+// }
 
 const source = project.getSourceFiles();
-// console.log(sourceFiles)
+console.log('Source:', source)
+
 source.forEach((sourceFile) => {
   const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression); //gets all call expressions
 
