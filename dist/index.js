@@ -49,9 +49,9 @@ const project = fs.existsSync("tsconfig.json") //if tsconfig.json exists, scan f
     : new ts_morph_1.Project();
 console.log("Checking tsconfig.json existence...");
 console.log("fs.existsSync('tsconfig.json'):", fs.existsSync('./tsconfig.json'));
-// if (!fs.existsSync("tsconfig.json")) {
-//   project.addSourceFilesAtPaths("src/**/*.ts"); //!backup pattern to scan files if no tsconfig.json file found in user's code
-// }
+if (!fs.existsSync("tsconfig.json")) {
+    project.addSourceFilesAtPaths("src/**/*.ts"); //!backup pattern to scan files if no tsconfig.json file found in user's code
+}
 const source = project.getSourceFiles();
 console.log('Source:', source);
 source.forEach((sourceFile) => {
