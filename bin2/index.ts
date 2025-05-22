@@ -2,6 +2,7 @@
 import yargs from 'yargs';
 import { Project, ScriptTarget, SyntaxKind } from "ts-morph";
 import * as fs from 'fs';
+import { compareAPIs } from './compareAPIs.js';
 
 const path = yargs(process.argv.slice(2)).parse();
 
