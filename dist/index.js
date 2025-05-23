@@ -44,8 +44,10 @@ const path_1 = __importDefault(require("path"));
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const filecontracts_1 = require("./filecontracts");
 const cliArgs = (0, yargs_1.default)(process.argv.slice(2)).parse();
-const tsConfigPath = path_1.default.resolve(__dirname, '../tsconfig.json');
+const userProjectRoot = process.cwd();
+const tsConfigPath = path_1.default.resolve(userProjectRoot, 'tsconfig.json');
 console.log(tsConfigPath);
+<<<<<<< HEAD
 const project = fs.existsSync("tsconfig.json") //if tsconfig.json exists, scan files from this source
     ? new ts_morph_1.Project({ tsConfigFilePath: tsConfigPath })
     : new ts_morph_1.Project();
@@ -94,3 +96,22 @@ source.forEach((sourceFile) => {
 //   .filter(call => {
 //     const expression = call.getExpression();
 //     return expression.getText() === 'fetch'; //if the call expression matches 'fetch' return it 
+=======
+console.log("User project root:", userProjectRoot);
+console.log("Looking for tsconfig at:", tsConfigPath);
+let project;
+if (fs.existsSync(tsConfigPath)) {
+    console.log("Found tsconfig.json, loading project from it...");
+    project = new ts_morph_1.Project({ tsConfigFilePath: tsConfigPath });
+}
+else {
+    console.log("No tsconfig.json found in root, scanning all .ts files in project...");
+    project = new ts_morph_1.Project();
+    project.addSourceFilesAtPaths([
+        path_1.default.join(userProjectRoot, '**/*.ts'),
+        '!' + path_1.default.join(userProjectRoot, 'node_modules/**/*'),
+    ]);
+}
+const source = project.getSourceFiles();
+console.log('Source:', source);
+>>>>>>> 08410b5633b4936e33091ee5c980469ea117d671

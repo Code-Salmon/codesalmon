@@ -3,28 +3,40 @@ import yargs from 'yargs';
 import { Project, ScriptTarget, SyntaxKind } from "ts-morph";
 import * as fs from 'fs';
 import path from 'path';
+<<<<<<< HEAD
 import fetch from 'node-fetch';
 import { fileFolder } from './filecontracts';
+=======
+import { compareAPIs } from './drift'
+>>>>>>> 08410b5633b4936e33091ee5c980469ea117d671
 
 const cliArgs = yargs(process.argv.slice(2)).parse();
 
-const tsConfigPath = path.resolve(__dirname, '../tsconfig.json');
+const userProjectRoot = process.cwd();
+const tsConfigPath = path.resolve(userProjectRoot, 'tsconfig.json');
 console.log(tsConfigPath);
 
-const project = fs.existsSync("tsconfig.json") //if tsconfig.json exists, scan files from this source
-  ? new Project({ tsConfigFilePath: tsConfigPath })
-  : new Project(); 
+console.log("User project root:", userProjectRoot);
+console.log("Looking for tsconfig at:", tsConfigPath);
 
-console.log("Checking tsconfig.json existence...");
-console.log("fs.existsSync('tsconfig.json'):", fs.existsSync('./tsconfig.json'));
+let project: Project;
 
-// if (!fs.existsSync("tsconfig.json")) {
-//   project.addSourceFilesAtPaths("src/**/*.ts"); //!backup pattern to scan files if no tsconfig.json file found in user's code
-// }
+if (fs.existsSync(tsConfigPath)) {
+  console.log("Found tsconfig.json, loading project from it...");
+  project = new Project({ tsConfigFilePath: tsConfigPath });
+} else {
+  console.log("No tsconfig.json found in root, scanning all .ts files in project...");
+  project = new Project();
+  project.addSourceFilesAtPaths([
+  path.join(userProjectRoot, '**/*.ts'),
+  '!' + path.join(userProjectRoot, 'node_modules/**/*'),
+]);
+}
 
 const source = project.getSourceFiles();
 console.log('Source:', source)
 
+<<<<<<< HEAD
 source.forEach((sourceFile) => {
   const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression); //gets all call expressions
 
@@ -66,3 +78,5 @@ source.forEach((sourceFile) => {
   //     const expression = call.getExpression();
 
   //     return expression.getText() === 'fetch'; //if the call expression matches 'fetch' return it 
+=======
+>>>>>>> 08410b5633b4936e33091ee5c980469ea117d671
