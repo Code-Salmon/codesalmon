@@ -1,37 +1,34 @@
 import { diff, Diff } from 'deep-diff';
+import chalk from 'chalk';
 
 type JSONObj = Record<string, unknown>;
 
 export function compareAPIs(initial: JSONObj, current: JSONObj): void {
-    const drift: Diff<JSONObj, JSONObj>[] | undefined = diff(initial, current);
-    if (!drift || drift.length === 0) {
-        // No drift detected
-        console.log("no drift detected!");
-        return;
+  const drift: Diff<JSONObj, JSONObj>[] | undefined = diff(initial, current);
+  if (!drift) {
+    console.log(chalk.bold.bgWhite.greenBright('✅ No drift detected!'));
+    return;
+  }
+  console.log(chalk.yellow.bold('\n⚠️ Drift detected:\n'));
+
+  drift.forEach((update) => {
+    const path = change.path?.join('.') || '(root)';
+    switch (update.kind) {
+      case 'E':
+        console.log(chalk.blueBright(`✏️  Change at: ${path}`));
+        console.log(`From: ${JSON.stringify(update.lhs)}`);
+        console.log(`To: ${JSON.stringify(update.rhs)}`);
+        break;
+      case 'N':
+        console.log(chalk.greenBright(`➕ Addition at: ${path}`));
+        console.log(`Value: ${JSON.stringify(update.rhs)}\n`);
+        break;
+      case 'D':
+        console.log(chalk.redBright(`❌ Removed at: ${path}`));
+        console.log(`Old value: ${JSON.stringify(update.lhs)}\n`);
+        break;
+      default:
+        console.log(chalk.gray(`Unhandled change type at ${path}`));
     }
-    console.log('Drift detected: \n');
-    
-    for (const change of drift) {
-        const path = change.path?.join('.') || '(root)';
-        switch (change.kind) {
-            case 'E':
-                console.log(`Change found: ${path}`);
-                console.log(`From: ${JSON.stringify(change.lhs)}`); //
-                console.log(`To: ${JSON.stringify(change.rhs)}`);
-                break;
-            case 'N':
-                console.log(`Addition was made: ${path}`);
-                console.log(`Value: ${JSON.stringify(change.rhs)}\n`);
-                break;
-            case 'D':
-                console.log(`Removed: ${path}`);
-                console.log(`Old value: ${JSON.stringify(change.lhs)}\n`);
-                break;   
-            case 'A':
-                console.log(`Array change detected: ${path}`);
-                console.log(`Index: ${change.index}`);
-                console.log(`Item: ${JSON.stringify(change.item)}\n`);
-                break;
-        }
-    }
-}        
+  });
+}
