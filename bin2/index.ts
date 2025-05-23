@@ -3,12 +3,8 @@ import yargs from 'yargs';
 import { Project, ScriptTarget, SyntaxKind } from "ts-morph";
 import * as fs from 'fs';
 import path from 'path';
-<<<<<<< HEAD
 import fetch from 'node-fetch';
 import { fileFolder } from './filecontracts';
-=======
-import { compareAPIs } from './drift'
->>>>>>> 08410b5633b4936e33091ee5c980469ea117d671
 
 const cliArgs = yargs(process.argv.slice(2)).parse();
 
@@ -36,7 +32,6 @@ if (fs.existsSync(tsConfigPath)) {
 const source = project.getSourceFiles();
 console.log('Source:', source)
 
-<<<<<<< HEAD
 source.forEach((sourceFile) => {
   const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression); //gets all call expressions
 
@@ -78,5 +73,3 @@ source.forEach((sourceFile) => {
   //     const expression = call.getExpression();
 
   //     return expression.getText() === 'fetch'; //if the call expression matches 'fetch' return it 
-=======
->>>>>>> 08410b5633b4936e33091ee5c980469ea117d671
