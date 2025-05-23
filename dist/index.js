@@ -42,62 +42,23 @@ const ts_morph_1 = require("ts-morph");
 const fs = __importStar(require("fs"));
 const path_1 = __importDefault(require("path"));
 const cliArgs = (0, yargs_1.default)(process.argv.slice(2)).parse();
-const tsConfigPath = path_1.default.resolve(__dirname, '../tsconfig.json');
+const userProjectRoot = process.cwd();
+const tsConfigPath = path_1.default.resolve(userProjectRoot, 'tsconfig.json');
 console.log(tsConfigPath);
-const project = fs.existsSync("tsconfig.json") //if tsconfig.json exists, scan files from this source
-    ? new ts_morph_1.Project({ tsConfigFilePath: tsConfigPath })
-    : new ts_morph_1.Project();
-console.log("Checking tsconfig.json existence...");
-console.log("fs.existsSync('tsconfig.json'):", fs.existsSync('./tsconfig.json'));
-if (!fs.existsSync("tsconfig.json")) {
-    project.addSourceFilesAtPaths("src/**/*.ts"); //!backup pattern to scan files if no tsconfig.json file found in user's code
+console.log("User project root:", userProjectRoot);
+console.log("Looking for tsconfig at:", tsConfigPath);
+let project;
+if (fs.existsSync(tsConfigPath)) {
+    console.log("Found tsconfig.json, loading project from it...");
+    project = new ts_morph_1.Project({ tsConfigFilePath: tsConfigPath });
+}
+else {
+    console.log("No tsconfig.json found in root, scanning all .ts files in project...");
+    project = new ts_morph_1.Project();
+    project.addSourceFilesAtPaths([
+        path_1.default.join(userProjectRoot, '**/*.ts'),
+        '!' + path_1.default.join(userProjectRoot, 'node_modules/**/*'),
+    ]);
 }
 const source = project.getSourceFiles();
 console.log('Source:', source);
-source.forEach((sourceFile) => {
-    const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
-    calls.forEach((c) => {
-        const expr = c.getExpression(); //reads each call expression found
-        const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
-        const isWindowFetch = expr.getText() === 'window.fetch';
-        const isGlobalFetch = expr.getText() === 'globalThis.fetch';
-        if (isDirectFetch || isWindowFetch || isGlobalFetch) {
-            //if it matches, get the text and write it to a json object file
-            const filePath = sourceFile.getFilePath();
-            const code = c.getText();
-            if (!fs.existsSync('codeToScan.json')) {
-                //check if file already written so its not rewritten
-                fs.writeFile('codeToScan.json', code, (err) => {
-                    if (err) {
-                        console.error('An error occurred:', err);
-                    }
-                    else {
-                        console.log('File written successfully!');
-                    }
-                });
-            }
-            else {
-                fs.appendFile('codeToScan.json', code, (err) => {
-                    //append new data if file already exists
-                    if (err) {
-                        console.error('An error occurred:', err);
-                    }
-                    else {
-                        console.log('File written successfully!');
-                    }
-                });
-            }
-        }
-    });
-});
-// if (argv.ships > 3 && argv.distance < 53.5) {
-//   console.log('Plunder more riffiwobbles!');
-// } else {
-//   console.log('Retreat from the xupptumblers!');
-// }
-// console.log(argv);
-// const fetchCalls = c
-//   .getDescendantsOfKind(SyntaxKind.CallExpression) //get all call expressions
-//   .filter(call => {
-//     const expression = call.getExpression();
-//     return expression.getText() === 'fetch'; //if the call expression matches 'fetch' return it 
