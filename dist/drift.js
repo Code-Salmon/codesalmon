@@ -14,7 +14,7 @@ function compareAPIs(initial, current) {
     }
     console.log(chalk_1.default.yellow.bold('\n⚠️ Drift detected:\n'));
     drift.forEach((update) => {
-        const path = change.path?.join('.') || '(root)';
+        const path = update.path?.join('.') || '(root)';
         switch (update.kind) {
             case 'E':
                 console.log(chalk_1.default.blueBright(`✏️  Change at: ${path}`));

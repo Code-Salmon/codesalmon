@@ -44,46 +44,60 @@ const path_1 = __importDefault(require("path"));
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const filecontracts_1 = require("./filecontracts");
 const cliArgs = (0, yargs_1.default)(process.argv.slice(2)).parse();
-const userProjectRoot = process.cwd();
-const tsConfigPath = path_1.default.resolve(userProjectRoot, 'tsconfig.json');
-console.log(tsConfigPath);
-const project = fs.existsSync("tsconfig.json") //if tsconfig.json exists, scan files from this source
-    ? new ts_morph_1.Project({ tsConfigFilePath: tsConfigPath })
-    : new ts_morph_1.Project();
-console.log("Checking tsconfig.json existence...");
-console.log("fs.existsSync('tsconfig.json'):", fs.existsSync('./tsconfig.json'));
-// if (!fs.existsSync("tsconfig.json")) {
-//   project.addSourceFilesAtPaths("src/**/*.ts"); //!backup pattern to scan files if no tsconfig.json file found in user's code
-// }
-const source = project.getSourceFiles();
-console.log('Source:', source);
-source.forEach((sourceFile) => {
-    const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
-    calls.forEach(async (c) => {
-        const expr = c.getExpression(); //reads each call expression found
-        const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
-        const isWindowFetch = expr.getText() === 'window.fetch';
-        const isGlobalFetch = expr.getText() === 'globalThis.fetch';
-        if (isDirectFetch || isWindowFetch || isGlobalFetch) {
-            //if it matches, get the text and write it to a json object file
-            const code = c.getText();
-            const apiURLGrab = code.match(/fetch\(['"](.+?)['"]/);
-            if (apiURLGrab) {
-                const apiURL = apiURLGrab[1];
-                // the word fetch would be the [0] the url is the [1]
-                try {
-                    const response = await (0, node_fetch_1.default)(apiURL);
-                    const data = await response.json();
-                    console.log(`Response data from ${apiURL}:`, data);
-                    (0, filecontracts_1.fileFolder)(data);
-                }
-                catch (error) {
-                    console.error(`Error making test call to ${apiURL}:`, error);
+function scanSalmon() {
+    const userProjectRoot = process.cwd();
+    const tsConfigPath = path_1.default.resolve(userProjectRoot, 'tsconfig.json');
+    console.log(tsConfigPath);
+    console.log("User project root:", userProjectRoot);
+    console.log("Looking for tsconfig at:", tsConfigPath);
+    let project;
+    if (fs.existsSync(tsConfigPath)) {
+        console.log("Found tsconfig.json, loading project from it...");
+        project = new ts_morph_1.Project({ tsConfigFilePath: tsConfigPath });
+    }
+    else {
+        console.log("No tsconfig.json found in root, scanning all .ts files in project...");
+        project = new ts_morph_1.Project();
+        project.addSourceFilesAtPaths([
+            path_1.default.join(userProjectRoot, '**/*.ts'),
+            '!' + path_1.default.join(userProjectRoot, 'node_modules/**/*'),
+        ]);
+    }
+    const source = project.getSourceFiles();
+    // console.log('Source:', source)
+    source.forEach(async (sourceFile) => {
+        const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
+        calls.forEach(async (c) => {
+            const expr = c.getExpression(); //reads each call expression found
+            const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
+            const isWindowFetch = expr.getText() === 'window.fetch';
+            const isGlobalFetch = expr.getText() === 'globalThis.fetch';
+            // console.log('testing if this will log')
+            // console.log('c:', c)
+            if (isDirectFetch || isWindowFetch || isGlobalFetch) {
+                //if it matches, get the text and write it to a json object file
+                const code = c.getText();
+                const apiURLGrab = code.match(/fetch\(['"](.+?)['"]/);
+                console.log(apiURLGrab);
+                if (apiURLGrab) {
+                    const apiURL = apiURLGrab[1];
+                    // the word fetch would be the [0] the url is the [1]
+                    try {
+                        const response = await (0, node_fetch_1.default)(apiURL);
+                        const data = await response.json();
+                        console.log(`Response data from ${apiURL}:`, data);
+                        (0, filecontracts_1.fileFolder)(data);
+                    }
+                    catch (error) {
+                        console.error(`Error making test call to ${apiURL}:`, error);
+                    }
                 }
             }
-        }
+        });
     });
-});
+}
+;
+scanSalmon();
 // if (argv.ships > 3 && argv.distance < 53.5) {
 //   console.log('Plunder more riffiwobbles!');
 // } else {

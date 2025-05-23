@@ -12,7 +12,7 @@ export function compareAPIs(initial: JSONObj, current: JSONObj): void {
   console.log(chalk.yellow.bold('\n⚠️ Drift detected:\n'));
 
   drift.forEach((update) => {
-    const path = change.path?.join('.') || '(root)';
+    const path = update.path?.join('.') || '(root)';
     switch (update.kind) {
       case 'E':
         console.log(chalk.blueBright(`✏️  Change at: ${path}`));

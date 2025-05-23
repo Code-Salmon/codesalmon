@@ -8,6 +8,8 @@ import { fileFolder } from './filecontracts';
 
 const cliArgs = yargs(process.argv.slice(2)).parse();
 
+function scanSalmon(){
+
 const userProjectRoot = process.cwd();
 const tsConfigPath = path.resolve(userProjectRoot, 'tsconfig.json');
 console.log(tsConfigPath);
@@ -30,9 +32,9 @@ if (fs.existsSync(tsConfigPath)) {
 }
 
 const source = project.getSourceFiles();
-console.log('Source:', source)
+// console.log('Source:', source)
 
-source.forEach((sourceFile) => {
+source.forEach(async (sourceFile) => {
   const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression); //gets all call expressions
 
     calls.forEach(async (c) => {
@@ -41,16 +43,19 @@ source.forEach((sourceFile) => {
     const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
     const isWindowFetch = expr.getText() === 'window.fetch';
     const isGlobalFetch = expr.getText() === 'globalThis.fetch';
-
+    // console.log('testing if this will log')
+    // console.log('c:', c)
     if (isDirectFetch || isWindowFetch || isGlobalFetch) {
       //if it matches, get the text and write it to a json object file
       const code = c.getText();
       const apiURLGrab = code.match(/fetch\(['"](.+?)['"]/);
+      console.log(apiURLGrab);
       if(apiURLGrab) {
         const apiURL = apiURLGrab[1];
         // the word fetch would be the [0] the url is the [1]
         try {
       const response = await fetch(apiURL)
+      
       const data = await response.json();
       console.log(`Response data from ${apiURL}:`, data);
         fileFolder(data as Record<string, unknown>);
@@ -59,8 +64,9 @@ source.forEach((sourceFile) => {
         }}}
       }
 )})
+};
 
-
+scanSalmon();
 // if (argv.ships > 3 && argv.distance < 53.5) {
 //   console.log('Plunder more riffiwobbles!');
 // } else {
