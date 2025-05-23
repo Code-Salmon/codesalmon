@@ -1,36 +1,36 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compareAPIs = compareAPIs;
 const deep_diff_1 = require("deep-diff");
+const chalk_1 = __importDefault(require("chalk"));
 function compareAPIs(initial, current) {
     const drift = (0, deep_diff_1.diff)(initial, current);
-    if (!drift || drift.length === 0) {
-        // No drift detected
-        console.log("no drift detected!");
+    if (!drift) {
+        console.log(chalk_1.default.bold.bgWhite.greenBright('✅ No drift detected!'));
         return;
     }
-    console.log('Drift detected: \n');
-    for (const change of drift) {
+    console.log(chalk_1.default.yellow.bold('\n⚠️ Drift detected:\n'));
+    drift.forEach((update) => {
         const path = change.path?.join('.') || '(root)';
-        switch (change.kind) {
+        switch (update.kind) {
             case 'E':
-                console.log(`Change found: ${path}`);
-                console.log(`From: ${JSON.stringify(change.lhs)}`); //
-                console.log(`To: ${JSON.stringify(change.rhs)}`);
+                console.log(chalk_1.default.blueBright(`✏️  Change at: ${path}`));
+                console.log(`From: ${JSON.stringify(update.lhs)}`);
+                console.log(`To: ${JSON.stringify(update.rhs)}`);
                 break;
             case 'N':
-                console.log(`Addition was made: ${path}`);
-                console.log(`Value: ${JSON.stringify(change.rhs)}\n`);
+                console.log(chalk_1.default.greenBright(`➕ Addition at: ${path}`));
+                console.log(`Value: ${JSON.stringify(update.rhs)}\n`);
                 break;
             case 'D':
-                console.log(`Removed: ${path}`);
-                console.log(`Old value: ${JSON.stringify(change.lhs)}\n`);
+                console.log(chalk_1.default.redBright(`❌ Removed at: ${path}`));
+                console.log(`Old value: ${JSON.stringify(update.lhs)}\n`);
                 break;
-            case 'A':
-                console.log(`Array change detected: ${path}`);
-                console.log(`Index: ${change.index}`);
-                console.log(`Item: ${JSON.stringify(change.item)}\n`);
-                break;
+            default:
+                console.log(chalk_1.default.gray(`Unhandled change type at ${path}`));
         }
-    }
+    });
 }

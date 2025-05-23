@@ -3,6 +3,8 @@ import yargs from 'yargs';
 import { Project, ScriptTarget, SyntaxKind } from "ts-morph";
 import * as fs from 'fs';
 import path from 'path';
+import fetch from 'node-fetch';
+import { fileFolder } from './filecontracts';
 
 const cliArgs = yargs(process.argv.slice(2)).parse();
 
@@ -26,7 +28,7 @@ console.log('Source:', source)
 source.forEach((sourceFile) => {
   const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression); //gets all call expressions
 
-  calls.forEach((c) => {
+    calls.forEach(async (c) => {
     const expr = c.getExpression(); //reads each call expression found
 
     const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
@@ -35,34 +37,21 @@ source.forEach((sourceFile) => {
 
     if (isDirectFetch || isWindowFetch || isGlobalFetch) {
       //if it matches, get the text and write it to a json object file
-      const filePath = sourceFile.getFilePath();
       const code = c.getText();
-
-      if (!fs.existsSync('codeToScan.json')) {
-        //check if file already written so its not rewritten
-
-        fs.writeFile('codeToScan.json', code, (err) => {
-          if (err) {
-            console.error('An error occurred:', err);
-          } else {
-            console.log('File written successfully!');
-          }
-        });
-      } else {
-        fs.appendFile('codeToScan.json', code, (err) => {
-          //append new data if file already exists
-          if (err) {
-            console.error('An error occurred:', err);
-          } else {
-            console.log('File written successfully!');
-          }
-        });
+      const apiURLGrab = code.match(/fetch\(['"](.+?)['"]/);
+      if(apiURLGrab) {
+        const apiURL = apiURLGrab[1];
+        // the word fetch would be the [0] the url is the [1]
+        try {
+      const response = await fetch(apiURL)
+      const data = await response.json();
+      console.log(`Response data from ${apiURL}:`, data);
+        fileFolder(data as Record<string, unknown>);
+          } catch (error) {
+            console.error(`Error making test call to ${apiURL}:`, error)
+        }}}
       }
-    }
-  });
-});
-
-
+)})
 
 
 // if (argv.ships > 3 && argv.distance < 53.5) {

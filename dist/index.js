@@ -41,6 +41,8 @@ const yargs_1 = __importDefault(require("yargs"));
 const ts_morph_1 = require("ts-morph");
 const fs = __importStar(require("fs"));
 const path_1 = __importDefault(require("path"));
+const node_fetch_1 = __importDefault(require("node-fetch"));
+const filecontracts_1 = require("./filecontracts");
 const cliArgs = (0, yargs_1.default)(process.argv.slice(2)).parse();
 const tsConfigPath = path_1.default.resolve(__dirname, '../tsconfig.json');
 console.log(tsConfigPath);
@@ -49,43 +51,34 @@ const project = fs.existsSync("tsconfig.json") //if tsconfig.json exists, scan f
     : new ts_morph_1.Project();
 console.log("Checking tsconfig.json existence...");
 console.log("fs.existsSync('tsconfig.json'):", fs.existsSync('./tsconfig.json'));
-if (!fs.existsSync("tsconfig.json")) {
-    project.addSourceFilesAtPaths("src/**/*.ts"); //!backup pattern to scan files if no tsconfig.json file found in user's code
-}
+// if (!fs.existsSync("tsconfig.json")) {
+//   project.addSourceFilesAtPaths("src/**/*.ts"); //!backup pattern to scan files if no tsconfig.json file found in user's code
+// }
 const source = project.getSourceFiles();
 console.log('Source:', source);
 source.forEach((sourceFile) => {
     const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
-    calls.forEach((c) => {
+    calls.forEach(async (c) => {
         const expr = c.getExpression(); //reads each call expression found
         const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
         const isWindowFetch = expr.getText() === 'window.fetch';
         const isGlobalFetch = expr.getText() === 'globalThis.fetch';
         if (isDirectFetch || isWindowFetch || isGlobalFetch) {
             //if it matches, get the text and write it to a json object file
-            const filePath = sourceFile.getFilePath();
             const code = c.getText();
-            if (!fs.existsSync('codeToScan.json')) {
-                //check if file already written so its not rewritten
-                fs.writeFile('codeToScan.json', code, (err) => {
-                    if (err) {
-                        console.error('An error occurred:', err);
-                    }
-                    else {
-                        console.log('File written successfully!');
-                    }
-                });
-            }
-            else {
-                fs.appendFile('codeToScan.json', code, (err) => {
-                    //append new data if file already exists
-                    if (err) {
-                        console.error('An error occurred:', err);
-                    }
-                    else {
-                        console.log('File written successfully!');
-                    }
-                });
+            const apiURLGrab = code.match(/fetch\(['"](.+?)['"]/);
+            if (apiURLGrab) {
+                const apiURL = apiURLGrab[1];
+                // the word fetch would be the [0] the url is the [1]
+                try {
+                    const response = await (0, node_fetch_1.default)(apiURL);
+                    const data = await response.json();
+                    console.log(`Response data from ${apiURL}:`, data);
+                    (0, filecontracts_1.fileFolder)(data);
+                }
+                catch (error) {
+                    console.error(`Error making test call to ${apiURL}:`, error);
+                }
             }
         }
     });
