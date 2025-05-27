@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 // import yargs from 'yargs';
-import { Project, ScriptTarget, SyntaxKind } from 'ts-morph';
+// ANNE -> added after SyntaxKind
+import { Project, ScriptTarget, SyntaxKind, ObjectLiteralExpression, PropertyAssignment } from 'ts-morph';
 import * as fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import { fileFolder } from './filecontracts';
 // const cliArgs = yargs(process.argv.slice(2)).parse();
+// Anne -> npm install dotenv
+// Anne -> This reads the .env file in the project root and loads key-value pairs into process.env.
+import dotenv from 'dotenv';
+
+
+
+dotenv.config();
 
 async function scanSalmon() {
   const userProjectRoot = process.cwd();
@@ -47,8 +55,47 @@ async function scanSalmon() {
       // console.log('c:', c)
       if (isDirectFetch || isWindowFetch || isGlobalFetch) {
         //if it matches, get the text and write it to a json object file
-        const code = c.getText(); // build in TS-Morph more appropriate??
+        const code = c.getText(); // build in TS-Morph more appropriate?? seeing .getArguments();
         console.log('code', code);
+        // ANNE CODE BLOCK
+        let headers: Record<string, string> = {};
+        //Extract headers from fetch second argument (if present)
+        const args = c.getArguments();
+        // Grab the second argument (the options object), like { headers: { ... } }
+        // args[0] = "https://api.example.com"
+        // args[1] = { method: "GET", headers: { ... } }
+        if (args[1] && args[1].getKind() === SyntaxKind.ObjectLiteralExpression) { // if it exists and is an object literal
+          const options = args[1] as ObjectLiteralExpression;
+          const headersProp = options.getProperty('headers'); // grabbing header from the object literal
+
+          if (headersProp && headersProp.getKind() === SyntaxKind.PropertyAssignment) { // if it exists and is an object, get contents of the hearder object
+            const initializer = (headersProp as PropertyAssignment).getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+            initializer?.getProperties().forEach((prop) => { // loop through the key-value pairs of that object
+              if (prop.getKind() === SyntaxKind.PropertyAssignment) { 
+                const name = prop.getName().replace(/^['"`]|['"`]$/g, ''); // removes quotes from the name
+                const init = prop.getInitializer(); // to be understood further
+                // ^^ .getInitializer() gets the value of the prop which would be "Authorization": process.env.API_KEY
+
+                if (init?.getKind() === SyntaxKind.StringLiteral) {
+                  headers[name] = init.getText().replace(/^['"`]|['"`]$/g, '');
+                }
+
+                if (init?.getText().startsWith('process.env.')) {
+                  const envVar = init.getText().split('.').pop();
+                  if (envVar && process.env[envVar]) {
+                    headers[name] = process.env[envVar]!;
+                  } else {
+                    console.warn(`⚠️ Environment variable '${envVar}' is not defined in .env`);
+                  }
+                }
+              }
+            });
+          }
+        }
+        // if statement to check if variable is in env
+        // have considered api key within header 
+        // NOTE TO USER - if key is exposed - console log the warning - suggest making it a .env variable
+
         // const apiURLGrab = code.match(/fetch\(['"](.+?)['"]/);
         const apiURLGrab = code.match(/fetch\s*\(\s*['"]([^'"]+)['"]/);
 
