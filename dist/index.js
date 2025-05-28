@@ -37,10 +37,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const dotenv_1 = __importDefault(require("dotenv"));
+const path_1 = __importDefault(require("path"));
 const ts_morph_1 = require("ts-morph");
 const fs = __importStar(require("fs"));
-const path_1 = __importDefault(require("path"));
-const dotenv_1 = __importDefault(require("dotenv"));
 // Anne -> This reads the .env file in the project root and loads key-value pairs into process.env.
 const inquirer_1 = __importDefault(require("inquirer"));
 // const cliArgs = yargs(process.argv.slice(2)).parse();
@@ -80,7 +80,6 @@ async function scanSalmon() {
                     arrayofAPIURLs.push(value);
                 }
             }
-            // 
             for (const c of calls) {
                 const expr = c.getExpression(); //reads each call expression found
                 const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
@@ -100,32 +99,52 @@ async function scanSalmon() {
                     // args[0] = "https://api.example.com"
                     // args[1] = { method: "GET", headers: { ... } }
                     // console.log('ARGS:', args)
-                    const arg0 = args[0];
-                    // console.log('Kind:', arg0.getKindName());
-                    // console.log('Text:', arg0.getText());
-                    if (arg0.getKind() === ts_morph_1.SyntaxKind.Identifier) {
-                        const identifier = arg0.asKindOrThrow(ts_morph_1.SyntaxKind.Identifier);
-                        const defs = identifier.getDefinitionNodes();
-                        // const defs = arg0.getDefinitionNodes();
-                        for (const def of defs) {
-                            if (def.getKind() === ts_morph_1.SyntaxKind.VariableDeclaration) {
-                                const varDecl = def.asKindOrThrow(ts_morph_1.SyntaxKind.VariableDeclaration);
-                                const init = varDecl.getInitializer();
-                                if (init?.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
-                                    const url = init.getText().replace(/^['"`]|['"`]$/g, '');
-                                    console.log('✅ Resolved from identifier:', url);
-                                    if (!arrayofFetchAPIs.includes(url)) {
-                                        arrayofFetchAPIs.push(url);
+                    // Everett's Updated Codeblock May 27
+                    if (args.length > 0) {
+                        const arg0 = args[0];
+                        if (arg0.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
+                            const apiURL = arg0.getText().replace(/^['"`]|['"`]$/g, '');
+                            console.log('Extracted API URL:', apiURL);
+                            if (!arrayofFetchAPIs.includes(apiURL)) {
+                                arrayofFetchAPIs.push(apiURL);
+                            }
+                        }
+                        else if (arg0.getKind() === ts_morph_1.SyntaxKind.Identifier) {
+                            const identifier = arg0.asKindOrThrow(ts_morph_1.SyntaxKind.Identifier);
+                            const defs = identifier.getDefinitionNodes();
+                            for (const def of defs) {
+                                if (def.getKind() === ts_morph_1.SyntaxKind.VariableDeclaration) {
+                                    const varDecl = def.asKindOrThrow(ts_morph_1.SyntaxKind.VariableDeclaration);
+                                    const init = varDecl.getInitializer();
+                                    if (init?.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
+                                        const url = init.getText().replace(/^['"`]|['"`]$/g, '');
+                                        console.log('✅ Resolved from identifier:', url);
+                                        if (!arrayofFetchAPIs.includes(url)) {
+                                            arrayofFetchAPIs.push(url);
+                                        }
+                                    }
+                                    else {
+                                        console.warn('⚠️ Could not resolve literal for identifier:', arg0.getText());
                                     }
                                 }
-                                else {
-                                    console.warn('⚠️ Could not resolve literal for identifier:', arg0.getText());
-                                }
                             }
+                            // console.log('Kind:', arg0.getKindName());
+                            // console.log('Text:', arg0.getText());
+                            // const defs = arg0.getDefinitionNodes();
+                        }
+                        else {
+                            console.warn('Fetch call does not use a string literal or identifier for the URL:', arg0.getText());
                         }
                     }
                     // console.log('array of Fetch API URLs:', arrayofFetchAPIs)
                     // DOES NOT WORK RIGHT NOW
+                    // API Call with headers:
+                    // post request or get request that needs tokens 
+                    // Simple API Calls
+                    // API keys - TS Morph 
+                    // varaible declaration = string is value of variable
+                    // 
+                    // three variable api calls
                     if (args[1] &&
                         args[1].getKind() === ts_morph_1.SyntaxKind.ObjectLiteralExpression) {
                         // if it exists and is an object literal
@@ -159,8 +178,6 @@ async function scanSalmon() {
                                                 }
                                                 else {
                                                     console.warn(`⚠️ Environment variable '${envVar}' is not defined. Prompting user...`);
-                                                }
-                                                if (envVar) {
                                                     const response = await inquirer_1.default.prompt([
                                                         {
                                                             type: 'password',
@@ -212,9 +229,11 @@ async function scanSalmon() {
                 }
             }
         }
+        console.log('SourceFile of all calls =            ', calls);
     }
     console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
     console.log('array of api URLs from fetch:', arrayofFetchAPIs);
 }
+// }
 // }
 scanSalmon();
