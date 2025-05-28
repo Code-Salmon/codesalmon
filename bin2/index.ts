@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import dotenv from 'dotenv';
+import path from 'path';
 import yargs from 'yargs';
 import {
   Project,
@@ -9,10 +11,8 @@ import {
   Identifier
 } from 'ts-morph';
 import * as fs from 'fs';
-import path from 'path';
 import fetch from 'node-fetch';
 import { fileFolder } from './filecontracts';
-import dotenv from 'dotenv';
 // Anne -> This reads the .env file in the project root and loads key-value pairs into process.env.
 import inquirer from 'inquirer';
 
@@ -64,7 +64,6 @@ async function scanSalmon() {
           
       }
     }
-    // 
 
     for (const c of calls) {
       const expr = c.getExpression(); //reads each call expression found
@@ -87,35 +86,66 @@ async function scanSalmon() {
         // args[0] = "https://api.example.com"
         // args[1] = { method: "GET", headers: { ... } }
         // console.log('ARGS:', args)
-        const arg0 = args[0];
-        // console.log('Kind:', arg0.getKindName());
-        // console.log('Text:', arg0.getText());
-        if (arg0.getKind() === SyntaxKind.Identifier) {
-          const identifier = arg0.asKindOrThrow(SyntaxKind.Identifier);
-          const defs = identifier.getDefinitionNodes();
-          // const defs = arg0.getDefinitionNodes();
-        
-          for (const def of defs) {
-            if (def.getKind() === SyntaxKind.VariableDeclaration) {
+
+
+        // Everett's Updated Codeblock May 27
+        if (args.length > 0) {
+          const arg0 = args[0];
+
+          if (arg0.getKind() === SyntaxKind.StringLiteral) {
+            const apiURL = arg0.getText().replace(/^['"`]|['"`]$/g, '');
+            console.log('Extracted API URL:', apiURL);
+
+            if(!arrayofFetchAPIs.includes(apiURL)) {
+              arrayofFetchAPIs.push(apiURL);
+            }
+          }
+          else if (arg0.getKind() === SyntaxKind.Identifier) {
+            const identifier = arg0.asKindOrThrow(SyntaxKind.Identifier);
+            const defs = identifier.getDefinitionNodes();
+
+            for (const def of defs) {
+              if (def.getKind() === SyntaxKind.VariableDeclaration) {
               const varDecl = def.asKindOrThrow(SyntaxKind.VariableDeclaration);
               const init = varDecl.getInitializer();
         
-              if (init?.getKind() === SyntaxKind.StringLiteral) {
+                if (init?.getKind() === SyntaxKind.StringLiteral) {
                 const url = init.getText().replace(/^['"`]|['"`]$/g, '');
                 console.log('✅ Resolved from identifier:', url);
                 
-                if(!arrayofFetchAPIs.includes(url)) {
+                  if(!arrayofFetchAPIs.includes(url)) {
                   arrayofFetchAPIs.push(url);
                 }
                 
-              } else {
+                } else {
                 console.warn('⚠️ Could not resolve literal for identifier:', arg0.getText());
               }
-            }
           }
         }
+        
+
+
+
+
+        // console.log('Kind:', arg0.getKindName());
+        // console.log('Text:', arg0.getText());
+          // const defs = arg0.getDefinitionNodes();
+        
+          
+            } else {
+              console.warn('Fetch call does not use a string literal or identifier for the URL:', arg0.getText());
+            }
+          }
+        
         // console.log('array of Fetch API URLs:', arrayofFetchAPIs)
         // DOES NOT WORK RIGHT NOW
+        // API Call with headers:
+          // post request or get request that needs tokens 
+            // Simple API Calls
+            // API keys - TS Morph 
+              // varaible declaration = string is value of variable
+              // 
+            // three variable api calls
         if (
           args[1] &&
           args[1].getKind() === SyntaxKind.ObjectLiteralExpression
@@ -157,12 +187,8 @@ async function scanSalmon() {
                         headers[name] = process.env[envVar]!;
                         console.log('header found:', headers[name])
                       } else {
-                        console.warn(
-                          `⚠️ Environment variable '${envVar}' is not defined. Prompting user...`
-                        );
-                      }
-                      if (envVar){
-                        const response = await inquirer.prompt([
+                        console.warn(`⚠️ Environment variable '${envVar}' is not defined. Prompting user...`);
+                            const response = await inquirer.prompt([
                           {
                             type: 'password',
                             name: 'value',
@@ -170,9 +196,8 @@ async function scanSalmon() {
                             mask: '*',
                           },
                         ]);
-                      
                         headers[name] = response.value;
-                        process.env[envVar] = response.value; //sets it in memory for later use
+                        process.env[envVar as string] = response.value; //sets it in memory for later use
                       }
                    }
                   }
@@ -219,9 +244,11 @@ async function scanSalmon() {
         }
       }
     }
+    console.log('SourceFile of all calls =            ', calls);
   }
   console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
   console.log('array of api URLs from fetch:', arrayofFetchAPIs)
 }
+// }
 // }
 scanSalmon();

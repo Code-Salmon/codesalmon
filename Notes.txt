@@ -1,30 +1,52 @@
 
-node fetch to add to index:
+Example SourceFile:
 
-import fetch from 'node-fetch';
+SourceFile {
+  fileName: '/path/to/file.ts',
+  text: `
+    import fetch from 'node-fetch';
 
-const response = await fetch('https://api.github.com/users/github');
-const data = await response.json(); <--- copy/pasted from node-fetch doc
-
-except the data is the url of the fetch call
-to match this with code we can use a regex expression and the match method
-
-I think this might be a problem if the user's data has variables or template literal passed into their fetch calls
-
-apiURLGrab = code.match(/fetch\(['"](.+?)['"]/));
-if(apiURLGrab) {
-    const apiURL = apiURLMatch[1];
-    // the word fetch would be the [0] the url is the [1]
+    const apiUrl = 'https://api.example.com';  <-- url grab
+    fetch(apiUrl, { method: 'GET', headers: { Authorization: 'Bearer token' } });
+  `,
+  statements: [
+    ImportDeclaration {                  
+      moduleSpecifier: 'node-fetch',         <--- statements.ImportDeclaration.modulSpecifier = fetch identifier
+      namedImports: ['fetch']
+    },
+    VariableStatement {
+      declaration: {
+        name: 'apiUrl',
+        initializer: StringLiteral { text: 'https://api.example.com' }
+      }
+    },
+    ExpressionStatement {
+      expression: CallExpression {
+        expression: Identifier { text: 'fetch' },
+        arguments: [
+          StringLiteral { text: 'https://api.example.com' },
+          ObjectLiteralExpression {
+            properties: [
+              PropertyAssignment {
+                name: 'method',
+                initializer: StringLiteral { text: 'GET' }
+              },
+              PropertyAssignment {
+                name: 'headers',
+                initializer: ObjectLiteralExpression {
+                  properties: [
+                    PropertyAssignment {
+                      name: 'Authorization',
+                      initializer: StringLiteral { text: 'Bearer token' }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
 
-try {
-    const response = await fetch(apiURL)
-    const data = await response.json();
-    console.log(`Response data from ${apiURL}:`, data);
-    fileFolder(data);
-} catch (error) {
-    console.error(`Error making test call to ${apiURL}:`, error)
-}
-
-
-console.log(data);
