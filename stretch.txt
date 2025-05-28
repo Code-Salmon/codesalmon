@@ -1,0 +1,64 @@
+
+This is for Header logic
+    let headers: Record<string, string> = {};
+if (
+          args[1] &&
+          args[1].getKind() === SyntaxKind.ObjectLiteralExpression
+        ) {
+          // if it exists and is an object literal
+          console.log('args[1] is obj lit')
+          const options = args[1] as ObjectLiteralExpression;
+          const headersProp = options.getProperty('headers'); // grabbing header from the object literal
+
+          if (
+            headersProp &&
+            headersProp.getKind() === SyntaxKind.PropertyAssignment
+          ) {
+            // if it exists and is an object, get contents of the hearder object
+            const initializer = (
+              headersProp as PropertyAssignment
+            ).getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+            console.log('Header value:', initializer)
+            if (initializer) {
+              for (const prop of initializer.getProperties()) {
+                {
+                  // loop through the key-value pairs of that object
+                  if (prop.getKind() === SyntaxKind.PropertyAssignment) {
+                    const assignment = prop as PropertyAssignment;
+                    const name = assignment.getName().replace(/^['"`]|['"`]$/g, '');
+                    const init = assignment.getInitializer(); // to be understood further
+                    // ^^ .getInitializer() gets the value of the prop which would be "Authorization": process.env.API_KEY
+
+                    if (init?.getKind() === SyntaxKind.StringLiteral) {
+                      headers[name] = init
+                        .getText()
+                        .replace(/^['"`]|['"`]$/g, '');
+                    }
+
+                    if (init?.getText().startsWith('process.env.')) {
+                      const envVar = init.getText().split('.').pop();
+
+                      if (envVar && process.env[envVar]) {
+                        headers[name] = process.env[envVar]!;
+                        console.log('header found:', headers[name])
+                      } else {
+                        console.warn(`⚠️ Environment variable '${envVar}' is not defined. Prompting user...`);
+                            const response = await inquirer.prompt([
+                          {
+                            type: 'password',
+                            name: 'value',
+                            message: `Enter value for environment variable "${envVar}`,
+                            mask: '*',
+                          },
+                        ]);
+                        headers[name] = response.value;
+                        process.env[envVar as string] = response.value; //sets it in memory for later use
+                      }
+                    }
+                  }
+                }
+              }
+            }
+       
+          }
+        }

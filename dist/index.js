@@ -41,8 +41,6 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const ts_morph_1 = require("ts-morph");
 const fs = __importStar(require("fs"));
-// Anne -> This reads the .env file in the project root and loads key-value pairs into process.env.
-const inquirer_1 = __importDefault(require("inquirer"));
 // const cliArgs = yargs(process.argv.slice(2)).parse();
 const userProjectRoot = process.cwd();
 dotenv_1.default.config({ path: path_1.default.join(userProjectRoot, '.env') });
@@ -68,172 +66,88 @@ async function scanSalmon() {
     // console.log('Source:', source)
     const arrayofAPIURLs = [];
     const arrayofFetchAPIs = [];
+    const objofAPIKeys = {};
     for (const sourceFile of source) {
         const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
-        const variableDeclarations = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.VariableDeclaration);
+        const variableDeclarations = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.VariableDeclaration); // gets all variable dec.
         for (const https of variableDeclarations) {
             const urlString = https.getInitializer();
             if (urlString && urlString.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
                 const value = urlString.getText().replace(/^['"`]|['"`]$/g, '');
                 if (value.startsWith('http')) {
-                    // console.log(`🔍 Found API URL: '${value}'`);
+                    console.log(`🔍 Found API URL: '${value}'`);
                     arrayofAPIURLs.push(value);
                 }
             }
-            for (const c of calls) {
-                const expr = c.getExpression(); //reads each call expression found
-                const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
-                const isWindowFetch = expr.getText() === 'window.fetch';
-                const isGlobalFetch = expr.getText() === 'globalThis.fetch';
-                // console.log('testing if this will log')
-                // console.log('c:', c)
-                if (isDirectFetch || isWindowFetch || isGlobalFetch) {
-                    //if it matches, get the text and write it to a json object file
-                    const code = c.getText(); // build in TS-Morph more appropriate?? seeing .getArguments();
-                    // console.log('code:', code)
-                    // ANNE CODE BLOCK
-                    let headers = {};
-                    //Extract headers from fetch second argument (if present)
-                    const args = c.getArguments();
-                    // Grab the second argument (the options object), like { headers: { ... } }
-                    // args[0] = "https://api.example.com"
-                    // args[1] = { method: "GET", headers: { ... } }
-                    // console.log('ARGS:', args)
-                    // Everett's Updated Codeblock May 27
-                    if (args.length > 0) {
-                        const arg0 = args[0];
-                        if (arg0.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
-                            const apiURL = arg0.getText().replace(/^['"`]|['"`]$/g, '');
-                            console.log('Extracted API URL:', apiURL);
-                            if (!arrayofFetchAPIs.includes(apiURL)) {
-                                arrayofFetchAPIs.push(apiURL);
-                            }
-                        }
-                        else if (arg0.getKind() === ts_morph_1.SyntaxKind.Identifier) {
-                            const identifier = arg0.asKindOrThrow(ts_morph_1.SyntaxKind.Identifier);
-                            const defs = identifier.getDefinitionNodes();
-                            for (const def of defs) {
-                                if (def.getKind() === ts_morph_1.SyntaxKind.VariableDeclaration) {
-                                    const varDecl = def.asKindOrThrow(ts_morph_1.SyntaxKind.VariableDeclaration);
-                                    const init = varDecl.getInitializer();
-                                    if (init?.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
-                                        const url = init.getText().replace(/^['"`]|['"`]$/g, '');
-                                        console.log('✅ Resolved from identifier:', url);
-                                        if (!arrayofFetchAPIs.includes(url)) {
-                                            arrayofFetchAPIs.push(url);
-                                        }
-                                    }
-                                    else {
-                                        console.warn('⚠️ Could not resolve literal for identifier:', arg0.getText());
-                                    }
-                                }
-                            }
-                            // console.log('Kind:', arg0.getKindName());
-                            // console.log('Text:', arg0.getText());
-                            // const defs = arg0.getDefinitionNodes();
-                        }
-                        else {
-                            console.warn('Fetch call does not use a string literal or identifier for the URL:', arg0.getText());
-                        }
+            else if (urlString && urlString.getKind() === ts_morph_1.SyntaxKind.PropertyAccessExpression) {
+                //  console.log('URLString:', urlString)
+                try {
+                    const processDec = urlString.asKindOrThrow(ts_morph_1.SyntaxKind.PropertyAccessExpression);
+                    //  const processDec= processEnv.getInitializerIfKind(SyntaxKind.PropertyAccessExpression);
+                    //  const env = processDec.getText(); // whole expression process.env.apikeyvar --- might nobt e 
+                    const envApiVar = processDec.getExpression().getText(); // process.env
+                    const envVarName = processDec.getName(); // .APIKEYVar
+                    //! FINALLY GETTING API KEYS
+                    if (process.env[envVarName]) {
+                        objofAPIKeys[envVarName] = process.env[envVarName];
                     }
-                    // console.log('array of Fetch API URLs:', arrayofFetchAPIs)
-                    // DOES NOT WORK RIGHT NOW
-                    // API Call with headers:
-                    // post request or get request that needs tokens 
-                    // Simple API Calls
-                    // API keys - TS Morph 
-                    // varaible declaration = string is value of variable
-                    // 
-                    // three variable api calls
-                    if (args[1] &&
-                        args[1].getKind() === ts_morph_1.SyntaxKind.ObjectLiteralExpression) {
-                        // if it exists and is an object literal
-                        console.log('args[1] is obj lit');
-                        const options = args[1];
-                        const headersProp = options.getProperty('headers'); // grabbing header from the object literal
-                        if (headersProp &&
-                            headersProp.getKind() === ts_morph_1.SyntaxKind.PropertyAssignment) {
-                            // if it exists and is an object, get contents of the hearder object
-                            const initializer = headersProp.getInitializerIfKind(ts_morph_1.SyntaxKind.ObjectLiteralExpression);
-                            console.log('Header value:', initializer);
-                            if (initializer) {
-                                for (const prop of initializer.getProperties()) {
-                                    {
-                                        // loop through the key-value pairs of that object
-                                        if (prop.getKind() === ts_morph_1.SyntaxKind.PropertyAssignment) {
-                                            const assignment = prop;
-                                            const name = assignment.getName().replace(/^['"`]|['"`]$/g, '');
-                                            const init = assignment.getInitializer(); // to be understood further
-                                            // ^^ .getInitializer() gets the value of the prop which would be "Authorization": process.env.API_KEY
-                                            if (init?.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
-                                                headers[name] = init
-                                                    .getText()
-                                                    .replace(/^['"`]|['"`]$/g, '');
-                                            }
-                                            if (init?.getText().startsWith('process.env.')) {
-                                                const envVar = init.getText().split('.').pop();
-                                                if (envVar && process.env[envVar]) {
-                                                    headers[name] = process.env[envVar];
-                                                    console.log('header found:', headers[name]);
-                                                }
-                                                else {
-                                                    console.warn(`⚠️ Environment variable '${envVar}' is not defined. Prompting user...`);
-                                                    const response = await inquirer_1.default.prompt([
-                                                        {
-                                                            type: 'password',
-                                                            name: 'value',
-                                                            message: `Enter value for environment variable "${envVar}`,
-                                                            mask: '*',
-                                                        },
-                                                    ]);
-                                                    headers[name] = response.value;
-                                                    process.env[envVar] = response.value; //sets it in memory for later use
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            // if statement to check if variable is in env
-                            // have considered api key within header
-                            // NOTE TO USER - if key is exposed - console log the warning - suggest making it a .env variable
-                            // const apiURLGrab = code.match(/fetch\(['"](.+?)['"]/);
-                            // const apiURLGrab = code.match(/fetch\s*\(\s*['"]([^'"]+)['"]/);
-                            // console.log('apiURLGrab:', apiURLGrab);
-                            // if (apiURLGrab) {
-                            //   const apiURL = apiURLGrab[1];
-                            //   console.log('apiURL =', apiURL);
-                            //   // the word fetch would be the [0] the url is the [1]
-                            //   try {
-                            //     const response = await fetch(apiURL, { headers });
-                            //     const data = await response.json();
-                            //     console.log(`Response data from ${apiURL}:`, data);
-                            //     fileFolder(data as Record<string, unknown>);
-                            //   } catch (error) {
-                            //     console.error(`Error making test call to ${apiURL}:`, error);
-                            //   }
-                            // }
-                        }
-                    }
-                    // else {
-                    //   const response = await inquirer.prompt([
-                    //     {
-                    //       type: 'password',
-                    //       name: 'value',
-                    //       message: `Enter key for environment variable "URL"`, //! define URL
-                    //       mask: '*',
-                    //     },
-                    //   ]);
-                    // headers[name] = response.value;
-                    // process.env[envVar] = response.value; //sets it in memory for later use
+                    console.log('enVarName:', envVarName);
+                }
+                catch (error) {
+                    console.error('Error in PropertyAccessExpression:', error);
                 }
             }
         }
-        console.log('SourceFile of all calls =            ', calls);
+        // for (const c of calls) {
+        //   const expr = c.getExpression(); //reads each call expression found
+        //   const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
+        //   const isWindowFetch = expr.getText() === 'window.fetch';
+        //   const isGlobalFetch = expr.getText() === 'globalThis.fetch';
+        //   // console.log('testing if this will log')
+        //   // console.log('c:', c)
+        //   if (isDirectFetch || isWindowFetch || isGlobalFetch) {
+        //     //if it matches, get the text and write it to a json object file
+        //     const code = c.getText(); // build in TS-Morph more appropriate?? seeing .getArguments();
+        //     // console.log('code:', code)
+        //     //Extract headers from fetch second argument (if present)
+        //     const args = c.getArguments();
+        //     // console.log('ARGS:', args)
+        //     if (args.length > 0) {
+        //       const arg0 = args[0];
+        //       if (arg0.getKind() === SyntaxKind.StringLiteral) {
+        //         const apiURL = arg0.getText().replace(/^['"`]|['"`]$/g, '');
+        //         console.log('Extracted API URL:', apiURL);
+        //         if(!arrayofFetchAPIs.includes(apiURL)) {
+        //           arrayofFetchAPIs.push(apiURL);
+        //         }
+        //       }
+        //       else if (arg0.getKind() === SyntaxKind.Identifier) {
+        //         const identifier = arg0.asKindOrThrow(SyntaxKind.Identifier);
+        //         const defs = identifier.getDefinitionNodes();
+        //         for (const def of defs) {
+        //           if (def.getKind() === SyntaxKind.VariableDeclaration) {
+        //           const varDecl = def.asKindOrThrow(SyntaxKind.VariableDeclaration);
+        //           const init = varDecl.getInitializer();
+        //             if (init?.getKind() === SyntaxKind.StringLiteral) {
+        //             const url = init.getText().replace(/^['"`]|['"`]$/g, '');
+        //             console.log('✅ Resolved from identifier:', url);
+        //               if(!arrayofFetchAPIs.includes(url)) {
+        //               arrayofFetchAPIs.push(url);
+        //             }
+        //             } else {
+        //             console.warn('⚠️ Could not resolve literal for identifier:', arg0.getText());
+        //           }
+        //       }
+        //     }
+        //         } else {
+        //           console.warn('Fetch call does not use a string literal or identifier for the URL:', arg0.getText());
+        //         }
+        //       }
+        //     }
+        //   }
     }
+    console.log("objofAPIKeys:", objofAPIKeys);
     console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
     console.log('array of api URLs from fetch:', arrayofFetchAPIs);
 }
-// }
-// }
 scanSalmon();
