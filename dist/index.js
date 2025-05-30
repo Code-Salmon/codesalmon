@@ -65,7 +65,6 @@ async function scanSalmon() {
     const source = project.getSourceFiles();
     // console.log('Source:', source)
     const arrayofAPIURLs = [];
-    const arrayofFetchAPIs = [];
     const objofAPIKeys = {};
     for (const sourceFile of source) {
         const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
@@ -98,56 +97,38 @@ async function scanSalmon() {
                 }
             }
         }
-        // for (const c of calls) {
-        //   const expr = c.getExpression(); //reads each call expression found
-        //   const isDirectFetch = expr.getText() === 'fetch'; //these 3 lines will check for the type of call expression
-        //   const isWindowFetch = expr.getText() === 'window.fetch';
-        //   const isGlobalFetch = expr.getText() === 'globalThis.fetch';
-        //   // console.log('testing if this will log')
-        //   // console.log('c:', c)
-        //   if (isDirectFetch || isWindowFetch || isGlobalFetch) {
-        //     //if it matches, get the text and write it to a json object file
-        //     const code = c.getText(); // build in TS-Morph more appropriate?? seeing .getArguments();
-        //     // console.log('code:', code)
-        //     //Extract headers from fetch second argument (if present)
-        //     const args = c.getArguments();
-        //     // console.log('ARGS:', args)
-        //     if (args.length > 0) {
-        //       const arg0 = args[0];
-        //       if (arg0.getKind() === SyntaxKind.StringLiteral) {
-        //         const apiURL = arg0.getText().replace(/^['"`]|['"`]$/g, '');
-        //         console.log('Extracted API URL:', apiURL);
-        //         if(!arrayofFetchAPIs.includes(apiURL)) {
-        //           arrayofFetchAPIs.push(apiURL);
-        //         }
-        //       }
-        //       else if (arg0.getKind() === SyntaxKind.Identifier) {
-        //         const identifier = arg0.asKindOrThrow(SyntaxKind.Identifier);
-        //         const defs = identifier.getDefinitionNodes();
-        //         for (const def of defs) {
-        //           if (def.getKind() === SyntaxKind.VariableDeclaration) {
-        //           const varDecl = def.asKindOrThrow(SyntaxKind.VariableDeclaration);
-        //           const init = varDecl.getInitializer();
-        //             if (init?.getKind() === SyntaxKind.StringLiteral) {
-        //             const url = init.getText().replace(/^['"`]|['"`]$/g, '');
-        //             console.log('✅ Resolved from identifier:', url);
-        //               if(!arrayofFetchAPIs.includes(url)) {
-        //               arrayofFetchAPIs.push(url);
-        //             }
-        //             } else {
-        //             console.warn('⚠️ Could not resolve literal for identifier:', arg0.getText());
-        //           }
-        //       }
-        //     }
-        //         } else {
-        //           console.warn('Fetch call does not use a string literal or identifier for the URL:', arg0.getText());
-        //         }
-        //       }
-        //     }
-        //   }
     }
+    // { url: key }
+    // obj.url + obj.url.value
     console.log("objofAPIKeys:", objofAPIKeys);
     console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
-    console.log('array of api URLs from fetch:', arrayofFetchAPIs);
 }
 scanSalmon();
+// For tomorrow:
+// Try for a half an hour or so
+// attempt to make the api calls with
+// https://api.nasa.gov/planetary/apod?api_key=4Ft01vTgsi4Gp07fqeIlcrjaGJ0AO3fz1KHQaL8m
+// We hardcode two different json objects
+// The second one (either response or call depending on deep diff) slightly different
+//* Deep diff comparison
+//! This is big for the presentation, Making cool chalk response!!!
+//? We can make a graph or we can just return the actual data
+// {
+//     "date": "2025-05-28",
+//     "explanation": "This might look like a double-bladed lightsaber, but these two cosmic jets actually beam outward from a newborn star in a galaxy near you. Constructed from Hubble Space Telescope image data, the stunning scene spans about half a light-year across Herbig-Haro 24 (HH 24), some 1,300 light-years or 400 parsecs away in the stellar nurseries of the Orion B molecular cloud complex. Hidden from direct view, HH 24's central protostar is surrounded by cold dust and gas flattened into a rotating accretion disk. As material from the disk falls toward the young stellar object, it heats up. Opposing jets are blasted out along the system's rotation axis. Cutting through the region's interstellar matter, the narrow, energetic jets produce a series of glowing shock fronts along their path.",
+//     "hdurl": "https://apod.nasa.gov/apod/image/2505/hs-2015-42-a-fullHH24.jpg",
+//     "media_type": "image",
+//     "service_version": "v1",
+//     "title": "Herbig-Haro 24",
+//     "url": "https://apod.nasa.gov/apod/image/2505/hs-2015-42-a-largeHH241024.jpg"
+// }
+// -->array of api urls + keys
+// make calls
+// If (E's folder does not exsist){
+// invoke fun
+// save respose making folder}
+// if (E's folder exists && resoponse isn't in there){
+// invoke fun
+// save response}
+// invoke drift on (folder saved, current call)
+// return drift

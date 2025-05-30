@@ -97,6 +97,7 @@ async function scanSalmon() {
 scanSalmon();
 
 
+
 // For tomorrow:
   // Try for a half an hour or so
   // attempt to make the api calls with

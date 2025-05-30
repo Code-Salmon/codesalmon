@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "salmon": "node ./dist/index.js"
+    "salmon": "node ./dist/index.js",
+    "salmonSpawn": "tsc && node ./dist/drift.js"
   },
   "type": "commonjs",
   "author": "",
