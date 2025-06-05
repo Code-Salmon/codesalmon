@@ -41,12 +41,16 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const ts_morph_1 = require("ts-morph");
 const fs = __importStar(require("fs"));
+const node_fetch_1 = __importDefault(require("node-fetch"));
+const filecontracts_1 = require("./filecontracts");
+const drift_1 = require("./drift");
+const chalk_1 = __importDefault(require("chalk"));
+const child_process_1 = require("child_process");
 const userProjectRoot = process.cwd();
 dotenv_1.default.config({ path: path_1.default.join(userProjectRoot, '.env') });
 const fetchCalls = [];
 const arrayofAPIURLs = [];
 const objofAPIKeys = {};
-// const cliArgs = yargs(process.argv.slice(2)).parse();
 async function scanSalmon() {
     const tsConfigPath = path_1.default.resolve(userProjectRoot, 'tsconfig.json');
     // console.log(tsConfigPath);
@@ -77,10 +81,10 @@ async function scanSalmon() {
                 expr.getText() === 'globalThis.fetch';
             if (!isFetchCall)
                 continue;
-            console.log('fetch calls:', isFetchCall);
+            // console.log('fetch calls:', isFetchCall)
             const args = c.getArguments();
             const urlArg = args[0];
-            console.log('url arguments:', urlArg);
+            // console.log('url arguments:', urlArg)
             let url;
             let apiKeyVar;
             // Extract the URL or environment-based URL
@@ -163,22 +167,44 @@ async function scanSalmon() {
             }
         }
     }
-    // { url: key }
-    // obj.url + obj.url.value
+    return fetchCalls;
+} //end of scanSalmon
+// Helper function to invoke everything
+async function swimSalmon() {
+    try {
+        console.log(chalk_1.default.blue('🐟 Starting swimSalmon...'));
+        // Step 1: Find API calls
+        const discoveredAPIs = await scanSalmon(); // Ensure this returns FetchCallData[]
+        console.log(chalk_1.default.green('✅ API scan complete.'));
+        // Step 2: Write baseline results
+        await (0, filecontracts_1.writeTheFile)(discoveredAPIs); // This creates `.apiRestContracts.json`
+        console.log(chalk_1.default.green('✅ API snapshot written.'));
+        // Step 3: Load saved data
+        const topLevelPath = (0, child_process_1.execSync)('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
+        const filePath = path_1.default.join(topLevelPath, '.apiRestContracts.json');
+        const rawData = fs.readFileSync(filePath, 'utf-8');
+        const baselineData = JSON.parse(rawData);
+        // Step 4: Re-fetch and compare
+        for (const api of baselineData) {
+            const url = api.resolvedUrl;
+            const prev = api[url];
+            const liveCall = await (0, node_fetch_1.default)(url);
+            if (!liveCall.ok) {
+                console.warn(chalk_1.default.yellow(`⚠️ Could not re-fetch ${url}: ${liveCall.status}`));
+                continue;
+            }
+            const current = (await liveCall.json());
+            (0, drift_1.boxedLog)(chalk_1.default.blue(`🔍 Comparing drift for ${url}`), () => {
+                (0, drift_1.compareAPIs)(prev, current);
+            });
+        }
+        console.log(chalk_1.default.cyan('🏁 swimSalmon complete.'));
+    }
+    catch (error) {
+        console.error(chalk_1.default.red('❌ Error in swimSalmon:'), error);
+    }
 }
-// console.log("objofAPIKeys:", objofAPIKeys)
-// console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
-// }
-scanSalmon();
-// For tomorrow:
-// Try for a half an hour or so
-// attempt to make the api calls with
 // https://api.nasa.gov/planetary/apod?api_key=4Ft01vTgsi4Gp07fqeIlcrjaGJ0AO3fz1KHQaL8m
-// We hardcode two different json objects
-// The second one (either response or call depending on deep diff) slightly different
-//* Deep diff comparison
-//! This is big for the presentation, Making cool chalk response!!!
-//? We can make a graph or we can just return the actual data
 // {
 //     "date": "2025-05-28",
 //     "explanation": "This might look like a double-bladed lightsaber, but these two cosmic jets actually beam outward from a newborn star in a galaxy near you. Constructed from Hubble Space Telescope image data, the stunning scene spans about half a light-year across Herbig-Haro 24 (HH 24), some 1,300 light-years or 400 parsecs away in the stellar nurseries of the Orion B molecular cloud complex. Hidden from direct view, HH 24's central protostar is surrounded by cold dust and gas flattened into a rotating accretion disk. As material from the disk falls toward the young stellar object, it heats up. Opposing jets are blasted out along the system's rotation axis. Cutting through the region's interstellar matter, the narrow, energetic jets produce a series of glowing shock fronts along their path.",
@@ -188,13 +214,3 @@ scanSalmon();
 //     "title": "Herbig-Haro 24",
 //     "url": "https://apod.nasa.gov/apod/image/2505/hs-2015-42-a-largeHH241024.jpg"
 // }
-// -->array of api urls + keys
-// make calls
-// If (E's folder does not exsist){
-// invoke fun
-// save respose making folder}
-// if (E's folder exists && resoponse isn't in there){
-// invoke fun
-// save response}
-// invoke drift on (folder saved, current call)
-// return drift

@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import * as cfonts from 'cfonts';
 import stripAnsi from 'strip-ansi';
 
-type JSONObj = Record<string, unknown>;
+export type JSONObj = Record<string, any>;
 
 const goldenData = [{
   "date": "2025-05-28",
@@ -99,7 +99,7 @@ export function compareAPIs(initial: JSONObj, current: JSONObj): void {
 }
 
 
-function boxedLog(title: string, callback: () => void) {
+export function boxedLog(title: string, callback: () => void) {
   const logs: string[] = [];
   const originalLog = console.log;
 
@@ -137,3 +137,4 @@ for (let i=0; i<goldenData.length; i++){
 });
 }
 
+// needs to be dynamic for DD to do comparison without hardcoded data. need to pull in json object and iterate through them to get array[i].resolvedURL and make fetch call to compare

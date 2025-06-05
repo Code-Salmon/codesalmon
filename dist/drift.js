@@ -37,6 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compareAPIs = compareAPIs;
+exports.boxedLog = boxedLog;
 const deep_diff_1 = require("deep-diff");
 const chalk_1 = __importDefault(require("chalk"));
 const cfonts = __importStar(require("cfonts"));
@@ -161,3 +162,4 @@ for (let i = 0; i < goldenData.length; i++) {
         compareAPIs(goldenData[i], muddyData[i]);
     });
 }
+// needs to be dynamic for DD to do comparison without hardcoded data. need to pull in json object and iterate through them to get array[i].resolvedURL and make fetch call to compare

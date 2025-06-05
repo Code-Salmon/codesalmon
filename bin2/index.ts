@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import dotenv from 'dotenv';
 import path from 'path';
-import yargs from 'yargs';
 import {
   Node,
   Project,
@@ -14,6 +13,9 @@ import {
 import * as fs from 'fs';
 import fetch from 'node-fetch';
 import { writeTheFile } from './filecontracts';
+import { compareAPIs, boxedLog, JSONObj } from './drift';
+import chalk from 'chalk';
+import { execSync } from 'child_process';
 // Anne -> This reads the .env file in the project root and loads key-value pairs into process.env.
 import inquirer from 'inquirer';
 
@@ -24,7 +26,7 @@ interface APIKeys {
   [key: string]: string | undefined;
 }
 // UPDATE
-type FetchCallData = {
+export type FetchCallData = {
   url: string;
   apiKeyVar?: string;
   resolvedUrl?: string;
@@ -33,7 +35,6 @@ const fetchCalls: FetchCallData[] = [];
 const arrayofAPIURLs: string[] = [];
 const objofAPIKeys: APIKeys = {};
 
-// const cliArgs = yargs(process.argv.slice(2)).parse();
 async function scanSalmon() {
   
   const tsConfigPath = path.resolve(userProjectRoot, 'tsconfig.json');
@@ -170,37 +171,54 @@ async function scanSalmon() {
         }
       }
     }
-// { url: key }
-// obj.url + obj.url.value
-}
-    // console.log("objofAPIKeys:", objofAPIKeys)
-    // console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
-  // }
+    return fetchCalls;
+} //end of scanSalmon
 
-
-
-scanSalmon();
 
 // Helper function to invoke everything
-/* const swimSalmon = () => {
-  scanSalmon();
-  writeTheFile();
-  compareAPIs();
+async function swimSalmon() {
+  try {
+    console.log(chalk.blue('🐟 Starting swimSalmon...'));
+
+    // Step 1: Find API calls
+    const discoveredAPIs = await scanSalmon(); // Ensure this returns FetchCallData[]
+    console.log(chalk.green('✅ API scan complete.'));
+
+    // Step 2: Write baseline results
+    await writeTheFile(discoveredAPIs); // This creates `.apiRestContracts.json`
+    console.log(chalk.green('✅ API snapshot written.'));
+
+    // Step 3: Load saved data
+    const topLevelPath = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
+    const filePath = path.join(topLevelPath, '.apiRestContracts.json');
+    const rawData = fs.readFileSync(filePath, 'utf-8');
+    const baselineData = JSON.parse(rawData);
+
+    // Step 4: Re-fetch and compare
+    for (const api of baselineData) {
+      const url = api.resolvedUrl;
+      const prev = api[url];
+      const liveCall = await fetch(url);
+
+      if (!liveCall.ok) {
+        console.warn(chalk.yellow(`⚠️ Could not re-fetch ${url}: ${liveCall.status}`));
+        continue;
+      }
+
+      const current = (await liveCall.json()) as JSONObj;
+      boxedLog(chalk.blue(`🔍 Comparing drift for ${url}`), () => {
+        compareAPIs(prev, current);
+      });
+
+    }
+
+    console.log(chalk.cyan('🏁 swimSalmon complete.'));
+  } catch (error) {
+    console.error(chalk.red('❌ Error in swimSalmon:'), error);
   }
-*/ 
+}
 
-
-// For tomorrow:
-  // Try for a half an hour or so
-  // attempt to make the api calls with
     // https://api.nasa.gov/planetary/apod?api_key=4Ft01vTgsi4Gp07fqeIlcrjaGJ0AO3fz1KHQaL8m
-
-    // We hardcode two different json objects
-    // The second one (either response or call depending on deep diff) slightly different
-    //* Deep diff comparison
-    //! This is big for the presentation, Making cool chalk response!!!
-      //? We can make a graph or we can just return the actual data
-
 
 // {
 //     "date": "2025-05-28",
@@ -211,14 +229,3 @@ scanSalmon();
 //     "title": "Herbig-Haro 24",
 //     "url": "https://apod.nasa.gov/apod/image/2505/hs-2015-42-a-largeHH241024.jpg"
 // }
-
-// -->array of api urls + keys
-// make calls
-// If (E's folder does not exsist){
-// invoke fun
-// save respose making folder}
-// if (E's folder exists && resoponse isn't in there){
-// invoke fun
-// save response}
-// invoke drift on (folder saved, current call)
-// return drift
