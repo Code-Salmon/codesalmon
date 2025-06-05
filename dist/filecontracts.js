@@ -82,19 +82,6 @@ const apiTestCalls = async (url) => {
         console.error(err);
     }
 };
-// apiTestCalls(apiUrl);
-// const getGitIgnore = async () => {
-//   // try catch / async
-//     // creating the variable that brings the file to gitIgnore
-//       // using execSync
-//       try {
-//         const ignoreOutput = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).toString().trim();
-//         return ignoreOutput;
-//         console.log('ignoreOutput', ignoreOutput);
-//       } catch (error) {
-//         console.error('Error when getting the git ignore', error)
-//       }
-// }
 // function to create new file to store json snapshot of fetch calls on user's machine locally
 const fileFolder = (finalOutputArray) => {
     if (!finalOutputArray || typeof finalOutputArray !== "object") {
@@ -127,7 +114,7 @@ const fileFolder = (finalOutputArray) => {
         throw error;
     }
 };
-const writeTheFile = async () => {
+const writeTheFile = async (array) => {
     try {
         const testTheFile = await apiTestCalls(apiUrl);
         fileFolder(testTheFile);
@@ -137,14 +124,3 @@ const writeTheFile = async () => {
     }
 };
 exports.writeTheFile = writeTheFile;
-(0, exports.writeTheFile)();
-//need to run fetch calls from URL/Key strings sent from Anne's logic
-//then store that to json object
-//more than one file or just different arrays in one file?
-//hardcode in URL/Keys and then write logic for fetch calls here
-//then write logic for storing in different json files, maybe with temp lit to differentiate between APIs
-// apiTestCalls actually making call, getting response
-// That response needs to be stored as fourth property of output array
-// The full array is passed into fileFolder
-// Helper function for fileFolder to find and access to the user's gitignore <--- Done???
-// FileFolder will either write or append the file to user's codebase
