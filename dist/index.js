@@ -41,14 +41,17 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const ts_morph_1 = require("ts-morph");
 const fs = __importStar(require("fs"));
-// const cliArgs = yargs(process.argv.slice(2)).parse();
 const userProjectRoot = process.cwd();
 dotenv_1.default.config({ path: path_1.default.join(userProjectRoot, '.env') });
+const fetchCalls = [];
+const arrayofAPIURLs = [];
+const objofAPIKeys = {};
+// const cliArgs = yargs(process.argv.slice(2)).parse();
 async function scanSalmon() {
     const tsConfigPath = path_1.default.resolve(userProjectRoot, 'tsconfig.json');
-    console.log(tsConfigPath);
-    console.log('User project root:', userProjectRoot);
-    console.log('Looking for tsconfig at:', tsConfigPath);
+    // console.log(tsConfigPath);
+    // console.log('User project root:', userProjectRoot);
+    // console.log('Looking for tsconfig at:', tsConfigPath);
     let project;
     if (fs.existsSync(tsConfigPath)) {
         console.log('Found tsconfig.json, loading project from it...');
@@ -64,17 +67,79 @@ async function scanSalmon() {
     }
     const source = project.getSourceFiles();
     // console.log('Source:', source)
-    const arrayofAPIURLs = [];
-    const objofAPIKeys = {};
     for (const sourceFile of source) {
         const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
         const variableDeclarations = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.VariableDeclaration); // gets all variable dec.
+        for (const c of calls) {
+            const expr = c.getExpression();
+            const isFetchCall = expr.getText() === 'fetch' ||
+                expr.getText() === 'window.fetch' ||
+                expr.getText() === 'globalThis.fetch';
+            if (!isFetchCall)
+                continue;
+            console.log('fetch calls:', isFetchCall);
+            const args = c.getArguments();
+            const urlArg = args[0];
+            console.log('url arguments:', urlArg);
+            let url;
+            let apiKeyVar;
+            // Extract the URL or environment-based URL
+            if (urlArg) {
+                if (urlArg.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
+                    url = urlArg.getText().replace(/^['"`]|['"`]$/g, '');
+                }
+                else if (urlArg.getText().includes('process.env.')) {
+                    const urlText = urlArg.getText();
+                    url = urlText;
+                    const envMatch = urlText.match(/process\.env\.([A-Z0-9_]+)/i);
+                    if (envMatch) {
+                        apiKeyVar = envMatch[1];
+                    }
+                }
+            }
+            // Extract the API key variable from headers
+            const optionsArg = args[1];
+            if (optionsArg?.getKind() === ts_morph_1.SyntaxKind.ObjectLiteralExpression) {
+                const options = optionsArg;
+                const headersProp = options.getProperty('headers');
+                if (headersProp &&
+                    headersProp.getKind() === ts_morph_1.SyntaxKind.PropertyAssignment) {
+                    const initializer = headersProp.getInitializerIfKind(ts_morph_1.SyntaxKind.ObjectLiteralExpression);
+                    initializer?.getProperties().forEach((prop) => {
+                        if (ts_morph_1.Node.isPropertyAssignment(prop)) {
+                            const name = prop.getName().replace(/^['"`]|['"`]$/g, '');
+                            const init = prop.getInitializer();
+                            if (init?.getText().startsWith('process.env.')) {
+                                const envVar = init.getText().split('.').pop();
+                                if (envVar &&
+                                    (name.toLowerCase().includes('auth') ||
+                                        name.toLowerCase().includes('key'))) {
+                                    apiKeyVar = envVar;
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            if (url) {
+                const resolvedUrl = url?.replace(/process\.env\.([A-Z0-9_]+)/gi, (_, varName) => {
+                    return process.env[varName] || `process.env.${varName}`;
+                });
+                fetchCalls.push({ url, apiKeyVar, resolvedUrl });
+            }
+        }
+        console.log('Fetch Call Summary OBJ:', fetchCalls);
+        // console.log('\n:package: Extracted Fetch Calls:');
+        // console.table(fetchCalls);
+        // const outputPath = path.join(userProjectRoot, 'fetch-api-summary.json');
+        // fs.writeFileSync(outputPath, JSON.stringify(fetchCalls, null, 2));
+        // console.log(`\n:white_check_mark: Summary written to: ${outputPath}`);
         for (const https of variableDeclarations) {
             const urlString = https.getInitializer();
             if (urlString && urlString.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
                 const value = urlString.getText().replace(/^['"`]|['"`]$/g, '');
                 if (value.startsWith('http')) {
-                    console.log(`🔍 Found API URL: '${value}'`);
+                    // console.log(`🔍 Found API URL: '${value}'`);
                     arrayofAPIURLs.push(value);
                 }
             }
@@ -90,7 +155,7 @@ async function scanSalmon() {
                     if (process.env[envVarName]) {
                         objofAPIKeys[envVarName] = process.env[envVarName];
                     }
-                    console.log('enVarName:', envVarName);
+                    //  console.log('enVarName:', envVarName);
                 }
                 catch (error) {
                     console.error('Error in PropertyAccessExpression:', error);
@@ -100,9 +165,10 @@ async function scanSalmon() {
     }
     // { url: key }
     // obj.url + obj.url.value
-    console.log("objofAPIKeys:", objofAPIKeys);
-    console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
 }
+// console.log("objofAPIKeys:", objofAPIKeys)
+// console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
+// }
 scanSalmon();
 // For tomorrow:
 // Try for a half an hour or so

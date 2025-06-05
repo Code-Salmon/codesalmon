@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import yargs from 'yargs';
 import {
+  Node,
   Project,
   ScriptTarget,
   SyntaxKind,
@@ -12,26 +13,34 @@ import {
 } from 'ts-morph';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
-import { fileFolder } from './filecontracts';
+import { writeTheFile } from './filecontracts';
 // Anne -> This reads the .env file in the project root and loads key-value pairs into process.env.
 import inquirer from 'inquirer';
+
+const userProjectRoot = process.cwd();
+dotenv.config({ path: path.join(userProjectRoot, '.env') });
 
 interface APIKeys {
   [key: string]: string | undefined;
 }
+// UPDATE
+type FetchCallData = {
+  url: string;
+  apiKeyVar?: string;
+  resolvedUrl?: string;
+};
+const fetchCalls: FetchCallData[] = [];
+const arrayofAPIURLs: string[] = [];
+const objofAPIKeys: APIKeys = {};
 
 // const cliArgs = yargs(process.argv.slice(2)).parse();
-const userProjectRoot = process.cwd();
-
-dotenv.config({ path: path.join(userProjectRoot, '.env') });
-
 async function scanSalmon() {
-
+  
   const tsConfigPath = path.resolve(userProjectRoot, 'tsconfig.json');
-  console.log(tsConfigPath);
+  // console.log(tsConfigPath);
 
-  console.log('User project root:', userProjectRoot);
-  console.log('Looking for tsconfig at:', tsConfigPath);
+  // console.log('User project root:', userProjectRoot);
+  // console.log('Looking for tsconfig at:', tsConfigPath);
 
   let project: Project;
 
@@ -50,13 +59,87 @@ async function scanSalmon() {
   }
   const source = project.getSourceFiles();
   // console.log('Source:', source)
-  const arrayofAPIURLs: string[] = [];
-  const objofAPIKeys: APIKeys = {};
+
   
   for (const sourceFile of source) {
     const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression); //gets all call expressions
     const variableDeclarations = sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration); // gets all variable dec.
-  
+    for (const c of calls) {
+      const expr = c.getExpression();
+      const isFetchCall =
+        expr.getText() === 'fetch' ||
+        expr.getText() === 'window.fetch' ||
+        expr.getText() === 'globalThis.fetch';
+
+      if (!isFetchCall) continue;
+      // console.log('fetch calls:', isFetchCall)
+      const args = c.getArguments();
+      const urlArg = args[0];
+      // console.log('url arguments:', urlArg)
+      let url: string | undefined;
+      let apiKeyVar: string | undefined;
+
+      // Extract the URL or environment-based URL
+      if (urlArg) {
+        if (urlArg.getKind() === SyntaxKind.StringLiteral) {
+          url = urlArg.getText().replace(/^['"`]|['"`]$/g, '');
+        } else if (urlArg.getText().includes('process.env.')) {
+          const urlText = urlArg.getText();
+          url = urlText;
+          const envMatch = urlText.match(/process\.env\.([A-Z0-9_]+)/i);
+          if (envMatch) {
+            apiKeyVar = envMatch[1];
+          }
+        }
+      }
+      // Extract the API key variable from headers
+      const optionsArg = args[1];
+      if (optionsArg?.getKind() === SyntaxKind.ObjectLiteralExpression) {
+        const options = optionsArg as ObjectLiteralExpression;
+        const headersProp = options.getProperty('headers');
+        if (
+          headersProp &&
+          headersProp.getKind() === SyntaxKind.PropertyAssignment
+        ) {
+          const initializer = (
+            headersProp as PropertyAssignment
+          ).getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+          initializer?.getProperties().forEach((prop) => {
+            if (Node.isPropertyAssignment(prop)) {
+              const name = prop.getName().replace(/^['"`]|['"`]$/g, '');
+              const init = (prop as PropertyAssignment).getInitializer();
+              if (init?.getText().startsWith('process.env.')) {
+                const envVar = init.getText().split('.').pop();
+                if (
+                  envVar &&
+                  (name.toLowerCase().includes('auth') ||
+                    name.toLowerCase().includes('key'))
+                ) {
+                  apiKeyVar = envVar;
+                }
+              }
+            }
+          });
+        }
+      }
+      if (url) {
+        const resolvedUrl = url?.replace(
+          /process\.env\.([A-Z0-9_]+)/gi,
+          (_, varName) => {
+            return process.env[varName] || `process.env.${varName}`;
+          }
+        );
+        fetchCalls.push({ url, apiKeyVar, resolvedUrl });
+
+      }
+    } console.log('Fetch Call Summary OBJ:', fetchCalls);
+
+  // console.log('\n:package: Extracted Fetch Calls:');
+  // console.table(fetchCalls);
+  // const outputPath = path.join(userProjectRoot, 'fetch-api-summary.json');
+  // fs.writeFileSync(outputPath, JSON.stringify(fetchCalls, null, 2));
+  // console.log(`\n:white_check_mark: Summary written to: ${outputPath}`);
+
 
     for (const https of variableDeclarations){
       const urlString = https.getInitializer();
@@ -65,7 +148,7 @@ async function scanSalmon() {
         const value = urlString.getText().replace(/^['"`]|['"`]$/g, ''); 
 
         if (value.startsWith('http')) {
-          console.log(`🔍 Found API URL: '${value}'`);
+          // console.log(`🔍 Found API URL: '${value}'`);
           arrayofAPIURLs.push(value)
       } 
      } else if (urlString && urlString.getKind() === SyntaxKind.PropertyAccessExpression){
@@ -80,7 +163,7 @@ async function scanSalmon() {
          if(process.env[envVarName]) {
          objofAPIKeys[envVarName] = process.env[envVarName];
         }
-         console.log('enVarName:', envVarName);
+        //  console.log('enVarName:', envVarName);
          } catch (error) {
             console.error('Error in PropertyAccessExpression:', error);
           }
@@ -89,13 +172,22 @@ async function scanSalmon() {
     }
 // { url: key }
 // obj.url + obj.url.value
+}
+    // console.log("objofAPIKeys:", objofAPIKeys)
+    // console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
+  // }
 
-    console.log("objofAPIKeys:", objofAPIKeys)
-    console.log('array of api URLs from variable declarations:', arrayofAPIURLs);
-  }
+
 
 scanSalmon();
 
+// Helper function to invoke everything
+/* const swimSalmon = () => {
+  scanSalmon();
+  writeTheFile();
+  compareAPIs();
+  }
+*/ 
 
 
 // For tomorrow:
