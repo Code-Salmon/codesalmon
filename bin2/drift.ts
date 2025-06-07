@@ -2,51 +2,12 @@ import { diff, Diff } from 'deep-diff';
 import chalk from 'chalk';
 import * as cfonts from 'cfonts';
 import stripAnsi from 'strip-ansi';
+import * as fs from 'fs';
+import path from 'path';
+import { execSync } from "child_process";
 
 export type JSONObj = Record<string, any>;
 
-const goldenData = [{
-  "date": "2025-05-28",
-  // "explanation": "This might look like a double-bladed lightsaber, but these two cosmic jets actually beam outward from a newborn star in a galaxy near you. Constructed from Hubble Space Telescope image data, the stunning scene spans about half a light-year across Herbig-Haro 24 (HH 24), some 1,300 light-years or 400 parsecs away in the stellar nurseries of the Orion B molecular cloud complex. Hidden from direct view, HH 24's central protostar is surrounded by cold dust and gas flattened into a rotating accretion disk. As material from the disk falls toward the young stellar object, it heats up. Opposing jets are blasted out along the system's rotation axis. Cutting through the region's interstellar matter, the narrow, energetic jets produce a series of glowing shock fronts along their path.",
-  "hdurl": "https://apod.nasa.gov/apod/image/2505/hs-2015-42-a-fullHH24.jpg",
-  "media_type": "image",
-  "service_version": "v1",
-  "title": "Herbig-Haro 24",
-  "url": "https://apod.nasa.gov/apod/image/2505/hs-2015-42-a-largeHH241024.jpg"
-},
-{
-    "count": 1302,
-    "next": "https://pokeapi.co/api/v2/pokemon?offset=1&limit=1",
-    "previous": null,
-    "results": [
-        {
-            "name": "bulbasaur",
-            "url": "https://pokeapi.co/api/v2/pokemon/1/"
-        }
-    ]
-}];
-
-const muddyData = [{
-    "copyright": "Franz Hofmann",
-    "date": "2025-05-29",
-    // "explanation": "Grand spiral galaxies often seem to get all the attention, flaunting young, bright, blue star clusters and pinkish star forming regions along graceful, symmetric spiral arms. But small galaxies form stars too, like irregular dwarf galaxy Sextans A. Its young star clusters and star forming regions are gathered into a gumdrop-shaped region a mere 5,000 light-years across. Seen toward the navigational constellation Sextans, the small galaxy lies some 4.5 million light-years distant. That puts it near the outskirts of the local group of galaxies, that includes the large, massive spirals Andromeda and our own Milky Way. Brighter Milky Way foreground stars appear spiky and yellowish in this colorful telescopic view of Sextans A.",
-    "hdurl": "https://apod.nasa.gov/apod/image/2505/sexa_gemsbock_cdk_pub.jpg",
-    "media_type": "image",
-    "service_version": "v1",
-    "title": "Irregular Dwarf Galaxy Sextans A",
-    "url": "https://apod.nasa.gov/apod/image/2505/sexa_gemsbock_cdk_pub1024.jpg"
-},
-{
-    "count": 1302,
-    "next": "https://pokeapi.co/api/v2/pokemon?offset=1&limit=1",
-    "previous": null,
-    "results": [
-        {
-            "name": "bulbasaur",
-            "url": "https://pokeapi.co/api/v2/pokemon/1/"
-        }
-    ]
-}];
 
 // function to use cfonts for messaging
 function displayMessage(message: string, colors: string[]) {
@@ -130,11 +91,25 @@ export function boxedLog(title: string, callback: () => void) {
     console.log(`└${horizontal}┘`);
   }
 }
-const urls = ['https://api.nasa.gov/planetary/apod?api_key=', 'https://pokeapi.co/api/v2/pokemon?offset=1&limit=1']
-for (let i=0; i<goldenData.length; i++){
-  boxedLog(`📦 API Drift Report for ${urls[i]}`, () => {
-  compareAPIs(goldenData[i], muddyData[i])
-});
-}
+
+// const identifySalmon = () => {
+//     const apiRestContractsPath = path.resolve(__dirname, '../.apiRestContracts.json');
+//     const apiContracts = JSON.parse(fs.readFileSync(apiRestContractsPath, 'utf-8'));
+//     for (let i = 0; i < apiContracts.length; i++) {
+//       boxedLog(`📦 API Drift Report`, () => {
+//       compareAPIs(apiContracts[i], muddyData[i])
+//     })
+//   }
+// }
+
+// get hardcoded data for current
+
+
+// const urls = ['https://api.nasa.gov/planetary/apod?api_key=', 'https://pokeapi.co/api/v2/pokemon?offset=1&limit=1']
+// for (let i=0; i<goldenData.length; i++){
+//   boxedLog(`📦 API Drift Report for ${urls[i]}`, () => {
+//   compareAPIs(goldenData[i], muddyData[i])
+//   });
+// }
 
 // needs to be dynamic for DD to do comparison without hardcoded data. need to pull in json object and iterate through them to get array[i].resolvedURL and make fetch call to compare

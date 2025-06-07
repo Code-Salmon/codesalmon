@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "cli tool to scan repos for contract drift",
   "bin": {
-    "ospg2-cli": "./dist/index.js"
+    "ospg2-cli": "./dist/index.js",    
+    "scanSalmon": "./dist/initialScan.js",
+    "swimSalmon": "./dist/compareScan.js"
   },
   "scripts": {
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "salmon": "node ./dist/index.js",
-    "salmonSpawn": "tsc && node ./dist/drift.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "commonjs",
   "author": "",

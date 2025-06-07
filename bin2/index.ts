@@ -8,7 +8,8 @@ import {
   SyntaxKind,
   ObjectLiteralExpression,
   PropertyAssignment,
-  Identifier
+  Identifier,
+  VariableDeclaration
 } from 'ts-morph';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
@@ -16,8 +17,6 @@ import { writeTheFile } from './filecontracts';
 import { compareAPIs, boxedLog, JSONObj } from './drift';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
-// Anne -> This reads the .env file in the project root and loads key-value pairs into process.env.
-import inquirer from 'inquirer';
 
 const userProjectRoot = process.cwd();
 dotenv.config({ path: path.join(userProjectRoot, '.env') });
@@ -35,7 +34,7 @@ const fetchCalls: FetchCallData[] = [];
 const arrayofAPIURLs: string[] = [];
 const objofAPIKeys: APIKeys = {};
 
-async function scanSalmon() {
+export async function scanSalmon() {
   
   const tsConfigPath = path.resolve(userProjectRoot, 'tsconfig.json');
   // console.log(tsConfigPath);
@@ -82,17 +81,47 @@ async function scanSalmon() {
 
       // Extract the URL or environment-based URL
       if (urlArg) {
-        if (urlArg.getKind() === SyntaxKind.StringLiteral) {
+        // console.log('urlArg:', urlArg)
+        const kind = urlArg.getKind();
+        console.log('urlKind:', kind)
+        
+        if (kind === SyntaxKind.StringLiteral) {
           url = urlArg.getText().replace(/^['"`]|['"`]$/g, '');
         } else if (urlArg.getText().includes('process.env.')) {
           const urlText = urlArg.getText();
           url = urlText;
+          console.log('url:', url)
           const envMatch = urlText.match(/process\.env\.([A-Z0-9_]+)/i);
           if (envMatch) {
             apiKeyVar = envMatch[1];
+            console.log('envMatch', envMatch)
           }
+        } else if (kind === SyntaxKind.Identifier) {
+          // Try to resolve the variable declaration
+          const symbol = urlArg.getSymbol();
+          const decl = symbol?.getDeclarations()?.[0];
+          if (decl?.getKind() === SyntaxKind.VariableDeclaration) {
+            const initializer = (decl as VariableDeclaration).getInitializer();
+            if (initializer?.getKind() === SyntaxKind.StringLiteral) {
+              url = initializer.getText().replace(/^['"`]|['"`]$/g, '');
+              console.log('url from Identifier:', url)
+            }
+            else if (initializer?.getKind() === SyntaxKind.BinaryExpression) {
+              const fullUrl = initializer.getText();
+              url = fullUrl;
+              console.log('url from BinaryExpression:', url);
+
+              const envMatch = fullUrl.match(/process\.env\.([A-Z0-9_]+)/i);
+              if (envMatch) {
+               apiKeyVar = envMatch[1];
+              }
+            }
+          }
+          
         }
+        
       }
+      
       // Extract the API key variable from headers
       const optionsArg = args[1];
       if (optionsArg?.getKind() === SyntaxKind.ObjectLiteralExpression) {
@@ -176,56 +205,4 @@ async function scanSalmon() {
 
 
 // Helper function to invoke everything
-async function swimSalmon() {
-  try {
-    console.log(chalk.blue('🐟 Starting swimSalmon...'));
 
-    // Step 1: Find API calls
-    const discoveredAPIs = await scanSalmon(); // Ensure this returns FetchCallData[]
-    console.log(chalk.green('✅ API scan complete.'));
-
-    // Step 2: Write baseline results
-    await writeTheFile(discoveredAPIs); // This creates `.apiRestContracts.json`
-    console.log(chalk.green('✅ API snapshot written.'));
-
-    // Step 3: Load saved data
-    const topLevelPath = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
-    const filePath = path.join(topLevelPath, '.apiRestContracts.json');
-    const rawData = fs.readFileSync(filePath, 'utf-8');
-    const baselineData = JSON.parse(rawData);
-
-    // Step 4: Re-fetch and compare
-    for (const api of baselineData) {
-      const url = api.resolvedUrl;
-      const prev = api[url];
-      const liveCall = await fetch(url);
-
-      if (!liveCall.ok) {
-        console.warn(chalk.yellow(`⚠️ Could not re-fetch ${url}: ${liveCall.status}`));
-        continue;
-      }
-
-      const current = (await liveCall.json()) as JSONObj;
-      boxedLog(chalk.blue(`🔍 Comparing drift for ${url}`), () => {
-        compareAPIs(prev, current);
-      });
-
-    }
-
-    console.log(chalk.cyan('🏁 swimSalmon complete.'));
-  } catch (error) {
-    console.error(chalk.red('❌ Error in swimSalmon:'), error);
-  }
-}
-
-    // https://api.nasa.gov/planetary/apod?api_key=4Ft01vTgsi4Gp07fqeIlcrjaGJ0AO3fz1KHQaL8m
-
-// {
-//     "date": "2025-05-28",
-//     "explanation": "This might look like a double-bladed lightsaber, but these two cosmic jets actually beam outward from a newborn star in a galaxy near you. Constructed from Hubble Space Telescope image data, the stunning scene spans about half a light-year across Herbig-Haro 24 (HH 24), some 1,300 light-years or 400 parsecs away in the stellar nurseries of the Orion B molecular cloud complex. Hidden from direct view, HH 24's central protostar is surrounded by cold dust and gas flattened into a rotating accretion disk. As material from the disk falls toward the young stellar object, it heats up. Opposing jets are blasted out along the system's rotation axis. Cutting through the region's interstellar matter, the narrow, energetic jets produce a series of glowing shock fronts along their path.",
-//     "hdurl": "https://apod.nasa.gov/apod/image/2505/hs-2015-42-a-fullHH24.jpg",
-//     "media_type": "image",
-//     "service_version": "v1",
-//     "title": "Herbig-Haro 24",
-//     "url": "https://apod.nasa.gov/apod/image/2505/hs-2015-42-a-largeHH241024.jpg"
-// }
