@@ -49,9 +49,6 @@ const arrayofAPIURLs = [];
 const objofAPIKeys = {};
 async function scanSalmon() {
     const tsConfigPath = path_1.default.resolve(userProjectRoot, 'tsconfig.json');
-    // console.log(tsConfigPath);
-    // console.log('User project root:', userProjectRoot);
-    // console.log('Looking for tsconfig at:', tsConfigPath);
     let project;
     if (fs.existsSync(tsConfigPath)) {
         console.log('Found tsconfig.json, loading project from it...');
@@ -66,7 +63,6 @@ async function scanSalmon() {
         ]);
     }
     const source = project.getSourceFiles();
-    // console.log('Source:', source)
     for (const sourceFile of source) {
         const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
         const variableDeclarations = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.VariableDeclaration); // gets all variable dec.
@@ -77,28 +73,22 @@ async function scanSalmon() {
                 expr.getText() === 'globalThis.fetch';
             if (!isFetchCall)
                 continue;
-            // console.log('fetch calls:', isFetchCall)
             const args = c.getArguments();
             const urlArg = args[0];
-            // console.log('url arguments:', urlArg)
             let url;
             let apiKeyVar;
             // Extract the URL or environment-based URL
             if (urlArg) {
-                // console.log('urlArg:', urlArg)
                 const kind = urlArg.getKind();
-                console.log('urlKind:', kind);
                 if (kind === ts_morph_1.SyntaxKind.StringLiteral) {
                     url = urlArg.getText().replace(/^['"`]|['"`]$/g, '');
                 }
                 else if (urlArg.getText().includes('process.env.')) {
                     const urlText = urlArg.getText();
                     url = urlText;
-                    console.log('url:', url);
                     const envMatch = urlText.match(/process\.env\.([A-Z0-9_]+)/i);
                     if (envMatch) {
                         apiKeyVar = envMatch[1];
-                        console.log('envMatch', envMatch);
                     }
                 }
                 else if (kind === ts_morph_1.SyntaxKind.Identifier) {
@@ -109,16 +99,29 @@ async function scanSalmon() {
                         const initializer = decl.getInitializer();
                         if (initializer?.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
                             url = initializer.getText().replace(/^['"`]|['"`]$/g, '');
-                            console.log('url from Identifier:', url);
                         }
                         else if (initializer?.getKind() === ts_morph_1.SyntaxKind.BinaryExpression) {
-                            const fullUrl = initializer.getText();
-                            url = fullUrl;
-                            console.log('url from BinaryExpression:', url);
-                            const envMatch = fullUrl.match(/process\.env\.([A-Z0-9_]+)/i);
+                            const binaryExpr = initializer.asKind(ts_morph_1.SyntaxKind.BinaryExpression);
+                            const left = binaryExpr?.getLeft();
+                            const right = binaryExpr?.getRight();
+                            const url = binaryExpr?.getText();
+                            // Look for process.env.* on either side
+                            const envMatch = url?.match(/process\.env\.([A-Z0-9_]+)/i);
                             if (envMatch) {
                                 apiKeyVar = envMatch[1];
                             }
+                            // 🆕 Check if one side is an Identifier like apiKeyVar (not process.env)
+                            if (right?.getKind() === ts_morph_1.SyntaxKind.Identifier) {
+                                const varName = right.getText();
+                                apiKeyVar = process.env[varName];
+                            }
+                            else if (left?.getKind() === ts_morph_1.SyntaxKind.Identifier) {
+                                const varName = left.getText();
+                                apiKeyVar = varName;
+                            }
+                            const leftText = left?.getText().replace(/^['"`]|['"`]$/g, '') ?? '';
+                            const resolvedUrl = leftText + (apiKeyVar ?? '');
+                            fetchCalls.push({ url, apiKeyVar, resolvedUrl });
                         }
                     }
                 }
@@ -147,41 +150,26 @@ async function scanSalmon() {
                     });
                 }
             }
-            if (url) {
-                const resolvedUrl = url?.replace(/process\.env\.([A-Z0-9_]+)/gi, (_, varName) => {
-                    return process.env[varName] || `process.env.${varName}`;
-                });
-                fetchCalls.push({ url, apiKeyVar, resolvedUrl });
-            }
         }
-        console.log('Fetch Call Summary OBJ:', fetchCalls);
-        // console.log('\n:package: Extracted Fetch Calls:');
-        // console.table(fetchCalls);
-        // const outputPath = path.join(userProjectRoot, 'fetch-api-summary.json');
-        // fs.writeFileSync(outputPath, JSON.stringify(fetchCalls, null, 2));
-        // console.log(`\n:white_check_mark: Summary written to: ${outputPath}`);
         for (const https of variableDeclarations) {
             const urlString = https.getInitializer();
             if (urlString && urlString.getKind() === ts_morph_1.SyntaxKind.StringLiteral) {
                 const value = urlString.getText().replace(/^['"`]|['"`]$/g, '');
                 if (value.startsWith('http')) {
-                    // console.log(`🔍 Found API URL: '${value}'`);
-                    arrayofAPIURLs.push(value);
                 }
             }
-            else if (urlString && urlString.getKind() === ts_morph_1.SyntaxKind.PropertyAccessExpression) {
-                //  console.log('URLString:', urlString)
+            else if (urlString &&
+                urlString.getKind() === ts_morph_1.SyntaxKind.PropertyAccessExpression) {
                 try {
                     const processDec = urlString.asKindOrThrow(ts_morph_1.SyntaxKind.PropertyAccessExpression);
                     //  const processDec= processEnv.getInitializerIfKind(SyntaxKind.PropertyAccessExpression);
-                    //  const env = processDec.getText(); // whole expression process.env.apikeyvar --- might nobt e 
+                    //  const env = processDec.getText(); // whole expression process.env.apikeyvar --- might nobt e
                     const envApiVar = processDec.getExpression().getText(); // process.env
                     const envVarName = processDec.getName(); // .APIKEYVar
                     //! FINALLY GETTING API KEYS
                     if (process.env[envVarName]) {
                         objofAPIKeys[envVarName] = process.env[envVarName];
                     }
-                    //  console.log('enVarName:', envVarName);
                 }
                 catch (error) {
                     console.error('Error in PropertyAccessExpression:', error);
@@ -191,4 +179,3 @@ async function scanSalmon() {
     }
     return fetchCalls;
 } //end of scanSalmon
-// Helper function to invoke everything

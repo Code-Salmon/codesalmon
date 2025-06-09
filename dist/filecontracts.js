@@ -84,20 +84,14 @@ const fileFolder = (finalOutputArray) => {
     try {
         const repoRoot = (0, child_process_1.execSync)("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
         const filePath = path_1.default.join(repoRoot, ".apiRestContracts.json");
-        if (!fs.existsSync(filePath)) {
-            fs.writeFileSync(filePath, JSON.stringify(finalOutputArray, null, 2));
-            console.log(chalk_1.default.blue(`Comparison file has been written at ${filePath}`));
+        let existingFile;
+        if (fs.existsSync(filePath)) {
+            const rawData = fs.readFileSync(filePath, "utf-8");
+            existingFile = JSON.parse(rawData);
         }
-        else {
-            fs.appendFile(filePath, JSON.stringify(finalOutputArray, null, 2), (err) => {
-                if (err) {
-                    console.error(chalk_1.default.red("Error appending to file:", err));
-                }
-                else {
-                    console.log(chalk_1.default.blue("Data appended successfully."));
-                }
-            });
-        }
+        const merged = [...finalOutputArray];
+        fs.writeFileSync(filePath, JSON.stringify(merged, null, 2));
+        console.log(chalk_1.default.blue(`File written with ${merged.length} entries at ${filePath}`));
     }
     catch (error) {
         console.error(chalk_1.default.red("File for comparison data not written"), error);

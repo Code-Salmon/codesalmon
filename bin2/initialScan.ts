@@ -5,7 +5,7 @@ import { scanSalmon } from './index'
 
 async function swimSalmon() {
   try {
-    console.log(chalk.blue('🐟 Starting swimSalmon...'));
+    console.log(chalk.blue('🐟 Starting scanSalmon...'));
 
     // Step 1: Find API calls
     const discoveredAPIs = await scanSalmon(); // Ensure this returns FetchCallData[]

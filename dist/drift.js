@@ -37,11 +37,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compareAPIs = compareAPIs;
-exports.boxedLog = boxedLog;
 const deep_diff_1 = require("deep-diff");
 const chalk_1 = __importDefault(require("chalk"));
 const cfonts = __importStar(require("cfonts"));
-const strip_ansi_1 = __importDefault(require("strip-ansi"));
 // function to use cfonts for messaging
 function displayMessage(message, colors) {
     cfonts.say(message, {
@@ -62,11 +60,9 @@ function displayMessage(message, colors) {
 function compareAPIs(initial, current) {
     const drift = (0, deep_diff_1.diff)(initial, current);
     if (!drift) {
-        // console.log(chalk.bold.bgWhite.greenBright('✅ No drift detected!'));
         displayMessage('No drift detected!', ['#3fff3f', '#00b400', '#005a00']);
         return;
     }
-    // console.log(chalk.yellow.bold('\n⚠️ Drift detected:\n'));
     displayMessage('Drift detected!', ['red', '#D16002', 'red']);
     drift.forEach((update) => {
         const path = update.path?.join('.') || '(root)';
@@ -89,46 +85,3 @@ function compareAPIs(initial, current) {
         }
     });
 }
-function boxedLog(title, callback) {
-    const logs = [];
-    const originalLog = console.log;
-    console.log = (...args) => {
-        const output = args.map(String).join(" ");
-        logs.push(...output.split("\n"));
-    };
-    try {
-        callback();
-    }
-    finally {
-        console.log = originalLog;
-        const allLines = [title, ...logs];
-        const maxLength = Math.max(...allLines.map(line => (0, strip_ansi_1.default)(line).length)) + 2;
-        const horizontal = "─".repeat(maxLength);
-        console.log(`┌${horizontal}┐`);
-        console.log(`│ ${title.padEnd(maxLength - 1)}│`);
-        console.log(`├${horizontal}┤`);
-        for (const line of logs) {
-            const visibleLength = (0, strip_ansi_1.default)(line).length;
-            const padding = ' '.repeat(maxLength - visibleLength - 1);
-            console.log(`│ ${line}${padding}│`);
-        }
-        console.log(`└${horizontal}┘`);
-    }
-}
-// const identifySalmon = () => {
-//     const apiRestContractsPath = path.resolve(__dirname, '../.apiRestContracts.json');
-//     const apiContracts = JSON.parse(fs.readFileSync(apiRestContractsPath, 'utf-8'));
-//     for (let i = 0; i < apiContracts.length; i++) {
-//       boxedLog(`📦 API Drift Report`, () => {
-//       compareAPIs(apiContracts[i], muddyData[i])
-//     })
-//   }
-// }
-// get hardcoded data for current
-// const urls = ['https://api.nasa.gov/planetary/apod?api_key=', 'https://pokeapi.co/api/v2/pokemon?offset=1&limit=1']
-// for (let i=0; i<goldenData.length; i++){
-//   boxedLog(`📦 API Drift Report for ${urls[i]}`, () => {
-//   compareAPIs(goldenData[i], muddyData[i])
-//   });
-// }
-// needs to be dynamic for DD to do comparison without hardcoded data. need to pull in json object and iterate through them to get array[i].resolvedURL and make fetch call to compare

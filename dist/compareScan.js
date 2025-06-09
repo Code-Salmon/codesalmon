@@ -52,16 +52,14 @@ async function compareScan() {
     // Step 4: Re-fetch and compare
     for (const api of baselineData) {
         const url = api.resolvedUrl;
-        const initial = api[url];
+        const initial = api.firstCall;
         const liveCall = await (0, node_fetch_1.default)(url);
         if (!liveCall.ok) {
             console.warn(chalk_1.default.yellow(`⚠️ Could not re-fetch ${url}: ${liveCall.status}`));
             continue;
         }
         const current = (await liveCall.json());
-        (0, drift_1.boxedLog)(chalk_1.default.blue(`🔍 Comparing drift for ${url}`), () => {
-            (0, drift_1.compareAPIs)(initial, current);
-        });
+        (0, drift_1.compareAPIs)(initial, current);
     }
 }
 console.log(chalk_1.default.cyan('🏁 swimSalmon complete.'));

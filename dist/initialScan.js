@@ -9,7 +9,7 @@ const chalk_1 = __importDefault(require("chalk"));
 const index_1 = require("./index");
 async function swimSalmon() {
     try {
-        console.log(chalk_1.default.blue('🐟 Starting swimSalmon...'));
+        console.log(chalk_1.default.blue('🐟 Starting scanSalmon...'));
         // Step 1: Find API calls
         const discoveredAPIs = await (0, index_1.scanSalmon)(); // Ensure this returns FetchCallData[]
         console.log(chalk_1.default.green('✅ API scan complete.'));

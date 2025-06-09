@@ -1,14 +1,11 @@
 import * as fs from "fs";
 import path from "path";
-import { compareAPIs } from "./drift";
 import fetch from "node-fetch";
 import { execSync } from "child_process";
 import chalk from "chalk";
 import { FetchCallData } from ".";
 
 type OutputArray = any[] | any;
-  
-
 
 // Function to make the fetch calls and store the results in a variable to pass to fileFolder
 const apiTestCalls = async (url: any[]) => {
@@ -56,18 +53,16 @@ const fileFolder = (finalOutputArray: OutputArray) => {
     const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
     const filePath = path.join(repoRoot, ".apiRestContracts.json");
 
-    if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, JSON.stringify(finalOutputArray, null, 2));
-      console.log(chalk.blue(`Comparison file has been written at ${filePath}`));
-    } else {
-      fs.appendFile(filePath, JSON.stringify(finalOutputArray, null, 2), (err) => {
-        if (err) {
-          console.error(chalk.red("Error appending to file:", err));
-        } else {
-          console.log(chalk.blue("Data appended successfully."));
-        }
-      });
-    }
+    let existingFile: OutputArray
+
+    if (fs.existsSync(filePath)) {
+      const rawData = fs.readFileSync(filePath, "utf-8");
+      existingFile = JSON.parse(rawData);
+    } 
+    const merged = [...finalOutputArray];
+    
+    fs.writeFileSync(filePath, JSON.stringify(merged, null, 2));
+    console.log(chalk.blue(`File written with ${merged.length} entries at ${filePath}`));
   } catch (error) {
     console.error(chalk.red("File for comparison data not written"), error);
     throw error;
