@@ -82,6 +82,7 @@ async function scanSalmon() {
             // Extract the URL or environment-based URL
             if (urlArg) {
                 const kind = urlArg.getKind();
+                console.log('URL Argument Kind:', ts_morph_1.SyntaxKind[kind], "urlArg:", urlArg); // binary expression
                 if (kind === ts_morph_1.SyntaxKind.StringLiteral) {
                     url = urlArg.getText().replace(/^['"`]|['"`]$/g, '');
                 }
@@ -92,6 +93,25 @@ async function scanSalmon() {
                     if (envMatch) {
                         apiKeyVar = envMatch[1];
                     }
+                }
+                else if (kind === ts_morph_1.SyntaxKind.BinaryExpression) {
+                    const binaryExpr = urlArg.asKind(ts_morph_1.SyntaxKind.BinaryExpression);
+                    const left = binaryExpr?.getLeft();
+                    const right = binaryExpr?.getRight();
+                    const leftText = left?.getText() ?? '';
+                    const rightText = right?.getText() ?? '';
+                    const fullText = leftText + rightText;
+                    // Look for process.env.* on either side
+                    const envMatch = fullText.match(/process\.env\.([A-Z0-9_]+)/i);
+                    if (envMatch) {
+                        apiKeyVar = envMatch[1];
+                    }
+                    const baseUrl = leftText.replace(/^['"`]|['"`]$/g, '');
+                    const resolvedUrl = apiKeyVar
+                        ? `${baseUrl}${process.env[apiKeyVar] ?? ''}`
+                        : baseUrl;
+                    fetchCalls.push({ url: fullText, apiKeyVar, resolvedUrl });
+                    console.log('Fetch Call (Binary):', { url: fullText, apiKeyVar, resolvedUrl });
                 }
                 else if (kind === ts_morph_1.SyntaxKind.Identifier) {
                     // Try to resolve the variable declaration
