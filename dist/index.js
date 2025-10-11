@@ -66,11 +66,13 @@ async function scanSalmon() {
     for (const sourceFile of source) {
         const calls = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.CallExpression); //gets all call expressions
         const variableDeclarations = sourceFile.getDescendantsOfKind(ts_morph_1.SyntaxKind.VariableDeclaration); // gets all variable dec.
+        // console.log(calls)
         for (const c of calls) {
             const expr = c.getExpression();
             const isFetchCall = expr.getText() === 'fetch' ||
                 expr.getText() === 'window.fetch' ||
                 expr.getText() === 'globalThis.fetch';
+            //   console.log('Call Expression:', c.getText());
             if (!isFetchCall)
                 continue;
             const args = c.getArguments();
@@ -122,6 +124,7 @@ async function scanSalmon() {
                             const leftText = left?.getText().replace(/^['"`]|['"`]$/g, '') ?? '';
                             const resolvedUrl = leftText + (apiKeyVar ?? '');
                             fetchCalls.push({ url, apiKeyVar, resolvedUrl });
+                            console.log('Fetch Call:', { url, apiKeyVar, resolvedUrl });
                         }
                     }
                 }

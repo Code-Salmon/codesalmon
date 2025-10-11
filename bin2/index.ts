@@ -52,12 +52,14 @@ export async function scanSalmon() {
     const variableDeclarations = sourceFile.getDescendantsOfKind(
       SyntaxKind.VariableDeclaration
     ); // gets all variable dec.
+   // console.log(calls)
     for (const c of calls) {
       const expr = c.getExpression();
       const isFetchCall =
         expr.getText() === 'fetch' ||
         expr.getText() === 'window.fetch' ||
         expr.getText() === 'globalThis.fetch';
+     //   console.log('Call Expression:', c.getText());
 
       if (!isFetchCall) continue;
       const args = c.getArguments();
@@ -112,6 +114,7 @@ export async function scanSalmon() {
                 const resolvedUrl = leftText + (apiKeyVar ?? '');
                 
               fetchCalls.push({ url, apiKeyVar, resolvedUrl });
+              console.log('Fetch Call:', { url, apiKeyVar, resolvedUrl });
             }
           }
         }
