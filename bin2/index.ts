@@ -9,6 +9,7 @@ import {
   PropertyAssignment,
   VariableDeclaration,
 } from 'ts-morph';
+import inquirer from 'inquirer';
 import * as fs from 'fs';
 
 const userProjectRoot = process.cwd();
@@ -17,7 +18,6 @@ dotenv.config({ path: path.join(userProjectRoot, '.env') });
 interface APIKeys {
   [key: string]: string | undefined;
 }
-// UPDATE
 export type FetchCallData = {
   url: any;
   apiKeyVar?: string;
@@ -27,6 +27,39 @@ const fetchCalls: FetchCallData[] = [];
 const arrayofAPIURLs: string[] = [];
 const objofAPIKeys: APIKeys = {};
 
+// Helper function to resolve enviroment variable values with prompt using inquirer
+async function resolveEnvVar(apiKeyVar: string): Promise<string | undefined> {
+  const existingValue = process.env[apiKeyVar];
+  if (existingValue) return existingValue;
+
+  console.log(`\nEnvironment variable "${apiKeyVar}" was referenced but not found.`);
+
+  const answers = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'allowInput',
+      message: `Would you like to enter a value for ${apiKeyVar}?`,
+      default: true,
+    },
+    {
+      type: 'input',
+      name: 'userValue',
+      message: `Enter value for ${apiKeyVar}:`,
+      when: (answers) => answers.allowInput,
+      validate: (input) => input.trim() !== '' || 'Value cannot be empty',
+    },
+  ]);
+
+  if (answers.userValue) {
+    const value = answers.userValue;
+    process.env[apiKeyVar] = value;
+    return value;
+  }
+
+  return undefined;
+}
+
+// main function to scan the project for fetch calls
 export async function scanSalmon() {
   const tsConfigPath = path.resolve(userProjectRoot, 'tsconfig.json');
 
@@ -70,7 +103,7 @@ export async function scanSalmon() {
       // Extract the URL or environment-based URL
       if (urlArg) {
         const kind = urlArg.getKind();
-        console.log('URL Argument Kind:', SyntaxKind[kind], "urlArg:", urlArg); // binary expression
+        //console.log('URL Argument Kind:', SyntaxKind[kind], "urlArg:", urlArg); // binary expression
 
         if (kind === SyntaxKind.StringLiteral) {
           url = urlArg.getText().replace(/^['"`]|['"`]$/g, '');
@@ -95,15 +128,15 @@ export async function scanSalmon() {
           if (envMatch) {
             apiKeyVar = envMatch[1];
           }
-          const baseUrl = leftText.replace(/^['"`]|['"`]$/g, '');
-          const resolvedUrl = apiKeyVar
-          ? `${baseUrl}${process.env[apiKeyVar] ?? ''}`
-          : baseUrl;
 
-    fetchCalls.push({ url: fullText, apiKeyVar, resolvedUrl });
-    console.log('Fetch Call (Binary):', { url: fullText, apiKeyVar, resolvedUrl });
+          const baseUrl = leftText.replace(/^['"`]|['"`]$/g, '');
+          const resolvedValue = apiKeyVar ? await resolveEnvVar(apiKeyVar) ?? '' : '';
+          const resolvedUrl = `${baseUrl}${resolvedValue}`;
+
+          fetchCalls.push({ url: fullText, apiKeyVar, resolvedUrl });
+          console.log('Fetch Call (Binary):', { url: fullText, apiKeyVar, resolvedUrl });
         
-  } else if (kind === SyntaxKind.Identifier) {
+        } else if (kind === SyntaxKind.Identifier) {
           // Try to resolve the variable declaration
           const symbol = urlArg.getSymbol();
           const decl = symbol?.getDeclarations()?.[0];
@@ -125,19 +158,19 @@ export async function scanSalmon() {
                 apiKeyVar = envMatch[1];
               }
 
-              // 🆕 Check if one side is an Identifier like apiKeyVar (not process.env)
+              // Check if one side is an Identifier like apiKeyVar (not process.env)
               if (right?.getKind() === SyntaxKind.Identifier) {
                 const varName = right.getText();
-                apiKeyVar = process.env[varName];
+                apiKeyVar = await resolveEnvVar(varName);
               } else if (left?.getKind() === SyntaxKind.Identifier) {
                 const varName = left.getText();
-                apiKeyVar = varName;
+                apiKeyVar = await resolveEnvVar(varName);
               }
                 const leftText = left?.getText().replace(/^['"`]|['"`]$/g, '') ?? '';
                 const resolvedUrl = leftText + (apiKeyVar ?? '');
                 
               fetchCalls.push({ url, apiKeyVar, resolvedUrl });
-              console.log('Fetch Call:', { url, apiKeyVar, resolvedUrl });
+              console.log('Fetch Call (Identifier):', { url, apiKeyVar, resolvedUrl });
             }
           }
         }
@@ -191,9 +224,9 @@ export async function scanSalmon() {
           const processDec = urlString.asKindOrThrow(
             SyntaxKind.PropertyAccessExpression
           );
-          //  const processDec= processEnv.getInitializerIfKind(SyntaxKind.PropertyAccessExpression);
-          //  const env = processDec.getText(); // whole expression process.env.apikeyvar --- might nobt e
-          const envApiVar = processDec.getExpression().getText(); // process.env
+          //const processDec= processEnv.getInitializerIfKind(SyntaxKind.PropertyAccessExpression);
+          //const env = processDec.getText(); // whole expression process.env.apikeyvar --- might nobt e
+          //const envApiVar = processDec.getExpression().getText(); // process.env
           const envVarName = processDec.getName(); // .APIKEYVar
           //! FINALLY GETTING API KEYS
           if (process.env[envVarName]) {
